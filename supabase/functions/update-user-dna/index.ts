@@ -13,21 +13,34 @@ const supabaseAdmin = createClient<Database>(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const handler = async (request: Request): Promise<Response> => {
+/**
+ * executeUserDnaSynthesisHandler:
+ * Misión: Sintetizar la narrativa del usuario en un vector semántico (DNA) con integridad nominal.
+ */
+const executeUserDnaSynthesisHandler = async (request: Request, context: GuardContext): Promise<Response> => {
+  const correlationIdentification = context.correlationIdentification;
+
   try {
+    const dnaSynthesisPayload = await request.json();
     const {
       profile_text: profileNarrativeText,
-      expertise_level: userExpertiseLevel,
+      expertise_level: userExpertiseLevelMagnitude,
       negative_interests: noiseInterestsCollection
-    } = await request.json();
+    } = dnaSynthesisPayload;
 
-    // 1. OBTENER IDENTIDAD DEL USUARIO
-    const authorizationHeader = request.headers.get('Authorization')!;
-    const { data: { user: authenticatedUser }, error: authenticationError } = await supabaseAdmin.auth.getUser(authorizationHeader.replace("Bearer ", ""));
+    // 1. PROTOCOLO DE IDENTIDAD (DIS DOCTRINE)
+    const authorizationHeader = request.headers.get('Authorization');
+    if (!authorizationHeader) throw new Error("AUTORIZACION_REQUERIDA: No se detectó token de acceso.");
 
-    if (authenticationError || !authenticatedUser) throw new Error("No autorizado.");
+    const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseAdmin.auth.getUser(authorizationHeader.replace("Bearer ", ""));
 
-    console.log(`[DNA-Engine] Sintetizando perfil semántico para: ${authenticatedUser.id}`);
+    if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
+      throw new Error("SESION_INVALIDA: La identidad del Voyager no pudo ser verificada.");
+    }
+
+    const authenticatedUserIdentification = authenticatedUserSnapshot.id;
+
+    console.info(`[DNA-Engine][${correlationIdentification}] Sintetizando perfil semántico para: ${authenticatedUserIdentification}`);
 
     // 2. ENRIQUECIMIENTO COGNITIVO (Gemini Flash)
     // Refinamos el texto del usuario para que el vector sea más preciso
@@ -43,32 +56,37 @@ const handler = async (request: Request): Promise<Response> => {
 
     // 4. PERSISTENCIA EN LA MATRIZ (METAL SYNC)
     // [METAL]: Se respetan estrictamente los nombres de columna de PostgreSQL (user_id, dna_vector, etc.)
-    const { error: upsertProcessError } = await supabaseAdmin
+    const { error: upsertDatabaseExceptionInformation } = await supabaseAdmin
       .from('user_interest_dna')
       .upsert({
-        user_id: authenticatedUser.id,
+        user_id: authenticatedUserIdentification,
         dna_vector: mastersDnaVector as unknown as string, // Cast necessary as generated vector is number[] but DB expects string/vector
         professional_profile: profileNarrativeText,
         negative_interests: noiseInterestsCollection || [],
-        expertise_level: userExpertiseLevel || 5,
+        expertise_level: userExpertiseLevelMagnitude || 5,
         last_updated: new Date().toISOString()
       });
 
-    if (upsertProcessError) throw upsertProcessError;
+    if (upsertDatabaseExceptionInformation) throw new Error(`DB_UPSERT_FAIL: ${upsertDatabaseExceptionInformation.message}`);
 
     return new Response(JSON.stringify({
       success: true,
-      message: "ADN Cognitivo actualizado correctamente."
+      message: "ADN Cognitivo actualizado correctamente.",
+      trace_identification: correlationIdentification
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-  } catch (caughtError: unknown) {
-    const errorMessage = caughtError instanceof Error ? caughtError.message : "Error desconocido";
-    console.error("🔥 [DNA-Update-Error]:", errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), {
+  } catch (exceptionMessageInformation: unknown) {
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido en síntesis de ADN";
+    console.error(`🔥 [DNA-Update-Fatal][${correlationIdentification}]:`, exceptionMessageInformationText);
+
+    return new Response(JSON.stringify({
+      error: exceptionMessageInformationText,
+      trace_identification: correlationIdentification
+    }), {
       status: 500,
-      headers: corsHeaders
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 };
 
-serve(guard(handler));
+serve(guard(executeUserDnaSynthesisHandler));

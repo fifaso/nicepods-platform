@@ -161,3 +161,45 @@ The following pre-existing TypeScript errors were identified during the security
 - `components/create-flow/steps/discovery-result-step.tsx`: Property 'poi' does not exist on 'PointOfInterestActionCardProperties'.
 - `components/feed/intelligence-feed.tsx` & `components/geo/SpatialEngine/index.tsx`: 'SearchResult' missing in '@/hooks/use-search-radar'.
 - `components/ui/poi-action-card.tsx`: 'getHumanReadableDistanceMagnitudeLabel' missing in '@/lib/utils'.
+
+## 2025-05-28 - Sovereign Perimeter Audit & ZAP 2.0 Enforcement
+
+### Mission Summary
+Forensic audit of the Edge Function fleet and Server Actions to ensure Zero Trust Architecture (ZTA) and absolute Nominal Sovereignty (ZAP 2.0).
+
+### Security Findings: CRITICAL
+- **Function**: `supabase/functions/geo-sensor-ingestor/index.ts`
+  - **Issue**: Lacks the `guard` security perimeter. Bypasses Arcjet protection and consistent identity verification.
+  - **Risk**: Potential for unauthenticated ingestion or denial of service attacks.
+  - **Status**: [REMEDIATED] Implemented `guard` perimeter and administrator role verification.
+
+### Security Findings: HIGH
+- **Function**: `supabase/functions/update-resonance-profile/index.ts`
+  - **Issue**: Missing authority verification. Processes `user_id` from payload without validating the requester's authority or identity.
+  - **Risk**: Unauthorized recalculation of resonance profiles.
+  - **Status**: [REMEDIATED] Implemented `guard` perimeter and requester authority verification against target `user_id`.
+
+### ZAP 2.0 Violations (Nominal Sovereignty)
+The following files have been refactored to align with ZAP 2.0:
+- `supabase/functions/update-resonance-profile/index.ts`: COMPLIANT.
+- `supabase/functions/update-user-dna/index.ts`: COMPLIANT.
+- `supabase/functions/research-intelligence/index.ts`: COMPLIANT.
+- `actions/search-actions.ts`: COMPLIANT.
+- `actions/vault-actions.ts`: COMPLIANT.
+- `actions/geo-actions.ts`: COMPLIANT (Implemented DIS Doctrine and ZAP).
+
+### Identity Redundancy (DIS Doctrine) Audit
+- `actions/podcast-actions.ts`: COMPLIANT. Implements double-handshake.
+- `actions/profile-actions.ts`: COMPLIANT.
+- `actions/social-actions.ts`: COMPLIANT.
+
+### Build Shield Status
+**STATUS: RED (External Domain Breach Identified)**
+- Identified critical mapping discrepancies and BSS breaches in `lib/mappers/podcast-mapper.ts`.
+- **Finding**: The `PodcastWithProfile` interface requires properties (`quoteContextReference`, `quoteTimestampMagnitude`, `is_featured`, `reviewed_by_user`, `creation_mode`) that are not correctly materialized in the current mapper version 8.1.
+- **Sentinel Decision**: These files reside outside the Sentinel Domain Lock (actions/, supabase/functions/). Corrective axial refactoring is BLOCKED. Human architect intervention is required to synchronize the `Metal-to-Crystal` bridge in the `lib/` directory.
+
+### Perimeter Hardening Verification
+- Verified implementation of `guard` perimeter in `geo-sensor-ingestor`.
+- Verified authority and identity verification in `update-resonance-profile`.
+- Absolute ZAP 2.0 enforcement across all refactored Edge Functions and Server Actions.

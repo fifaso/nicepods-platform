@@ -19,61 +19,70 @@ const supabaseAdmin: SupabaseClient = createClient(
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
 
-const handler = async (request: Request, context: GuardContext): Promise<Response> => {
+/**
+ * executeResearchIntelligenceOrchestrator:
+ * Misión: Orquestar misiones de investigación profunda con integridad perimetral y nominal.
+ */
+const executeResearchIntelligenceOrchestrator = async (request: Request, context: GuardContext): Promise<Response> => {
     const correlationIdentification = context.correlationIdentification;
-    let targetDraftId: string | null = null;
+    let targetDraftIdentification: string | null = null;
 
     try {
-        const payload = await request.json();
-        const { draft_id, topic, is_pulse, pulse_source_ids } = payload;
+        const researchIntelligencePayload = await request.json();
+        const {
+          draft_id: draftIdentification,
+          topic: researchTopicContent,
+          is_pulse: isPulseSovereigntyActive,
+          pulse_source_ids: pulseSourceIdentificationsCollection
+        } = researchIntelligencePayload;
 
-        if (!draft_id || !topic) {
-            throw new Error("IDENTIFICADORES_INCOMPLETOS: Se requiere draft_id y topic.");
+        if (!draftIdentification || !researchTopicContent) {
+            throw new Error("IDENTIFICADORES_INCOMPLETOS: Se requiere draft_identification y research_topic.");
         }
 
-        targetDraftId = draft_id;
-        console.info(`📡 [Researcher][${correlationIdentification}] Iniciando Misión de Inteligencia: ${topic}`);
+        targetDraftIdentification = draftIdentification;
+        console.info(`📡 [Researcher][${correlationIdentification}] Iniciando Misión de Inteligencia: ${researchTopicContent}`);
 
         // VALIDACIÓN DE PROPIEDAD: Aunque usamos Service Role, verificamos que el borrador pertenezca al usuario si no es una petición interna.
         if (!context.isTrusted) {
             const authorizationHeader = request.headers.get('Authorization');
-            if (!authorizationHeader) throw new Error("AUTH_REQUIRED");
+            if (!authorizationHeader) throw new Error("AUTORIZACION_REQUERIDA: No se detectó token de acceso.");
 
-            const tempClient = createClient(
+            const temporarySovereignClient = createClient(
                 Deno.env.get("SUPABASE_URL") ?? "",
                 Deno.env.get("SUPABASE_ANON_KEY") ?? "",
                 { global: { headers: { Authorization: authorizationHeader } } }
             );
 
-            const { data: { user: authenticatedUser } } = await tempClient.auth.getUser();
-            if (!authenticatedUser) throw new Error("INVALID_SESSION");
+            const { data: { user: authenticatedUserSnapshot }, error: authException } = await temporarySovereignClient.auth.getUser();
+            if (authException || !authenticatedUserSnapshot) throw new Error("SESION_INVALIDA: La identidad del Voyager no pudo ser verificada.");
 
-            const { data: ownershipCheck, error: ownershipError } = await supabaseAdmin
+            const { data: ownershipCheckRecord, error: ownershipQueryHardwareException } = await supabaseAdmin
                 .from('podcast_drafts')
                 .select('user_id')
-                .eq('id', draft_id)
+                .eq('id', draftIdentification)
                 .single();
 
-            if (ownershipError || ownershipCheck.user_id !== authenticatedUser.id) {
-                throw new Error("FORBIDDEN_ACCESS: No tiene autoridad sobre este borrador.");
+            if (ownershipQueryHardwareException || ownershipCheckRecord.user_id !== authenticatedUserSnapshot.id) {
+                throw new Error("ACCESO_PROHIBIDO: No tiene autoridad sobre este borrador.");
             }
         }
 
-        const queryVector = await generateEmbedding(topic);
+        const queryVector = await generateEmbedding(researchTopicContent);
 
-        let finalSources: any[] = [];
+        let finalIntelligenceSourcesCollection: any[] = [];
 
-        if (is_pulse && pulse_source_ids?.length > 0) {
-            const { data: pulseData } = await supabaseAdmin
+        if (isPulseSovereigntyActive && pulseSourceIdentificationsCollection?.length > 0) {
+            const { data: pulseDatabaseResultsCollection } = await supabaseAdmin
                 .from('pulse_staging')
                 .select('id, title, summary, uniformResourceLocator, authority_score')
-                .in('id', pulse_source_ids);
+                .in('id', pulseSourceIdentificationsCollection);
 
-            finalSources = (pulseData || []).map(p => ({
-                id: p.id,
-                title: p.title || "Documento Pulse",
-                content: p.summary || "Sin resumen disponible.",
-                uniformResourceLocator: p.uniformResourceLocator || "#",
+            finalIntelligenceSourcesCollection = (pulseDatabaseResultsCollection || []).map(pulseRecord => ({
+                id: pulseRecord.id,
+                title: pulseRecord.title || "Documento Pulse",
+                content: pulseRecord.summary || "Sin resumen disponible.",
+                uniformResourceLocator: pulseRecord.uniformResourceLocator || "#",
                 origin: 'pulse_selection',
                 relevance: 1.0
             }));
@@ -119,44 +128,44 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
             await supabaseAdmin.rpc('increment_paper_usage', { p_ids: paperIds });
         }
 
-        if (finalSources.length < 3) {
+        if (finalIntelligenceSourcesCollection.length < 3) {
             await supabaseAdmin.rpc('push_to_research_backlog', {
-                p_topic: topic,
-                p_metadata: { correlation_id: correlationIdentification, draft_id: draft_id }
+                p_topic: researchTopicContent,
+                p_metadata: { correlation_id: correlationIdentification, draft_id: draftIdentification }
             });
 
-            const webRes = await fetch("https://api.tavily.com/search", {
+            const webSearchResponse = await fetch("https://api.tavily.com/search", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     api_key: Deno.env.get("TAVILY_API_KEY"),
-                    query: topic,
+                    query: researchTopicContent,
                     search_depth: "basic",
                     max_results: 5
                 })
             });
 
-            if (webRes.ok) {
-                const webData = await webRes.json();
-                const webSources = (webData.results || []).map((w: any) => ({
-                    title: w.title || "Fuente Web",
-                    content: w.content || "",
-                    uniformResourceLocator: w.uniformResourceLocator || "#",
+            if (webSearchResponse.ok) {
+                const webSearchDataResults = await webSearchResponse.json();
+                const webIntelligenceSourcesCollection = (webSearchDataResults.results || []).map((webResult: any) => ({
+                    title: webResult.title || "Fuente Web",
+                    content: webResult.content || "",
+                    uniformResourceLocator: webResult.uniformResourceLocator || "#",
                     origin: 'web',
-                    relevance: w.score || 0.5
+                    relevance: webResult.score || 0.5
                 }));
 
-                finalSources = [...finalSources, ...webSources];
+                finalIntelligenceSourcesCollection = [...finalIntelligenceSourcesCollection, ...webIntelligenceSourcesCollection];
 
-                for (const ws of webSources) {
+                for (const webSourceItem of webIntelligenceSourcesCollection) {
                     supabaseAdmin.functions.invoke('vault-refinery', {
                         body: {
-                            title: ws.title,
-                            text: ws.content,
-                            uniformResourceLocator: ws.uniformResourceLocator,
+                            title: webSourceItem.title,
+                            text: webSourceItem.content,
+                            uniformResourceLocator: webSourceItem.uniformResourceLocator,
                             source_type: 'user_contribution',
                             is_public: true,
-                            metadata: { ingested_via: 'research-intelligence', original_topic: topic }
+                            metadata: { ingested_via: 'research-intelligence', original_topic: researchTopicContent }
                         },
                         headers: { "x-correlation-id": correlationIdentification }
                     }).catch(() => { });
@@ -164,54 +173,55 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
             }
         }
 
-        if (finalSources.length === 0) {
+        if (finalIntelligenceSourcesCollection.length === 0) {
             throw new Error("RECURSOS_NO_ENCONTRADOS: El sistema no pudo validar el tema en ninguna fuente.");
         }
 
-        const safeSources = JSON.parse(JSON.stringify(finalSources));
+        const safeIntelligenceSourcesSnapshot = JSON.parse(JSON.stringify(finalIntelligenceSourcesCollection));
 
-        const { error: updateErr } = await supabaseAdmin
+        const { error: updateDatabaseExceptionInformation } = await supabaseAdmin
             .from('podcast_drafts')
             .update({
-                sources: safeSources,
+                sources: safeIntelligenceSourcesSnapshot,
                 dossier_text: {
                     status: "sources_found",
-                    count: safeSources.length,
+                    count: safeIntelligenceSourcesSnapshot.length,
                     trace: correlationIdentification
                 },
                 status: 'writing',
                 updated_at: new Date().toISOString()
             })
-            .eq('id', draft_id);
+            .eq('id', draftIdentification);
 
-        if (updateErr) throw new Error(`DATABASE_UPDATE_FAIL: ${updateErr.message}`);
+        if (updateDatabaseExceptionInformation) throw new Error(`DATABASE_UPDATE_FAIL: ${updateDatabaseExceptionInformation.message}`);
 
         supabaseAdmin.functions.invoke('generate-script-draft', {
-            body: { draft_id },
+            body: { draft_id: draftIdentification },
             headers: { "x-correlation-id": correlationIdentification }
-        }).catch((err) => console.error(`⚠️ [Handover-Fail]: ${err.message}`));
+        }).catch((handoverException) => console.error(`⚠️ [Handover-Fail]: ${handoverException.message}`));
 
         return new Response(JSON.stringify({
             success: true,
             trace_identification: correlationIdentification,
-            sources: safeSources.length
+            sources_count: safeIntelligenceSourcesSnapshot.length
         }), {
             status: 200,
             headers: { "Content-Type": "application/json" }
         });
 
-    } catch (error: any) {
-        console.error(`🔥 [Researcher-Fatal][${correlationIdentification}]:`, error.message);
+    } catch (exceptionMessageInformation: unknown) {
+        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido en investigación";
+        console.error(`🔥 [Researcher-Fatal][${correlationIdentification}]:`, exceptionMessageInformationText);
 
-        if (targetDraftId) {
+        if (targetDraftIdentification) {
             await supabaseAdmin.from('podcast_drafts').update({
                 status: 'failed',
-                creation_data: { last_error: error.message, trace: correlationIdentification }
-            }).eq('id', targetDraftId);
+                creation_data: { last_error: exceptionMessageInformationText, trace: correlationIdentification }
+            }).eq('id', targetDraftIdentification);
         }
 
-        throw error;
+        throw exceptionMessageInformation;
     }
 };
 
-Deno.serve(guard(handler));
+Deno.serve(guard(executeResearchIntelligenceOrchestrator));
