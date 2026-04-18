@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: actions/podcast-actions.ts
- * VERSIÓN: 8.0 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 8.1 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: Intellectual Capital & Traceability
  * MISIÓN: Sincronización del Flujo de Datos (Metal-to-Crystal Mapping) y endurecimiento de la trazabilidad.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
@@ -68,13 +68,6 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
   const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   try {
-    const { data: { user: authenticatedUserSnapshot }, error: authHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
-
-    if (authHardwareExceptionInformation || !authenticatedUserSnapshot) {
-       nicepodLog("⚠️ [Podcast-Action-Warn][GetUser]: Voyager no autenticado o sesión expirada.");
-       return [];
-    }
-
     const { data: userPodcastsDatabaseResults, error: queryHardwareExceptionInformation } = await supabaseSovereignClient
       .from('micro_pods')
       .select('*, profiles(*)')
