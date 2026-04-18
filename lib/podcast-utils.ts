@@ -27,7 +27,7 @@ import {
  * el Crystal (UI), purificando la nomenclatura mediante la Doctrina ZAP.
  */
 export function mapDatabasePodcastToSovereignPodcast(
-    databaseRowInstance: any
+    databaseRowInstance: PodcastRow & { profiles?: ProfileRow | null }
 ): PodcastWithProfile {
     // Si la fila incluye el objeto relacional de perfiles, lo mapeamos también.
     const rawProfileDataSnapshot = databaseRowInstance.profiles || null;
@@ -43,7 +43,7 @@ export function mapDatabasePodcastToSovereignPodcast(
         publicationTimestamp: databaseRowInstance.published_at,
 
         // --- METADATA Y CONTENIDO ---
-        titleTextContent: databaseRowInstance.title,
+        titleTextContent: databaseRowInstance.title || "Crónica Sin Título",
         descriptionTextContent: databaseRowInstance.description,
         contentCategory: databaseRowInstance.category,
         publicationStatus: databaseRowInstance.status,
@@ -94,41 +94,8 @@ export function mapDatabasePodcastToSovereignPodcast(
             username: rawProfileDataSnapshot.username,
             reputationScoreValue: rawProfileDataSnapshot.reputation_score,
             isVerifiedAccountStatus: rawProfileDataSnapshot.is_verified,
-            authorityRole: rawProfileDataSnapshot.role,
-            // Fallbacks SSR
-            full_name: rawProfileDataSnapshot.full_name,
-            avatar_url: rawProfileDataSnapshot.avatar_url,
-            reputation_score: rawProfileDataSnapshot.reputation_score,
-            is_verified: rawProfileDataSnapshot.is_verified,
-            role: rawProfileDataSnapshot.role
-        } : null,
-
-        // --- ALIAS DE COMPATIBILIDAD (@deprecated) ---
-        id: databaseRowInstance.id,
-        user_id: databaseRowInstance.user_id,
-        parent_id: databaseRowInstance.parent_id,
-        title: databaseRowInstance.title,
-        description: databaseRowInstance.description,
-        status: databaseRowInstance.status,
-        processing_status: databaseRowInstance.processing_status,
-        audio_url: databaseRowInstance.audio_url,
-        cover_image_url: databaseRowInstance.cover_image_url,
-        duration_seconds: databaseRowInstance.duration_seconds,
-        created_at: databaseRowInstance.created_at,
-        like_count: Number(databaseRowInstance.like_count) ?? 0,
-        play_count: Number(databaseRowInstance.play_count) ?? 0,
-        creation_data: databaseRowInstance.creation_data as unknown as CreationMetadataPayload,
-        sources: databaseRowInstance.sources as unknown as ResearchSource[],
-        script_text: databaseRowInstance.script_text as unknown as PodcastScript,
-        ai_tags: databaseRowInstance.ai_tags,
-        geo_location: databaseRowInstance.geo_location as unknown as GeoLocation,
-        audio_ready: databaseRowInstance.audio_ready ?? false,
-        image_ready: databaseRowInstance.image_ready ?? false,
-        user_tags: databaseRowInstance.user_tags,
-        place_name: databaseRowInstance.place_name,
-        is_featured: databaseRowInstance.is_featured,
-        reviewed_by_user: databaseRowInstance.reviewed_by_user,
-        creation_mode: (databaseRowInstance.creation_data as unknown as CreationMetadataPayload)?.creationMode || databaseRowInstance.creation_mode
+            authorityRole: rawProfileDataSnapshot.role
+        } : null
     };
 
     return sovereignObject;

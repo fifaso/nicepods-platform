@@ -16,6 +16,19 @@
 - **Axial Synchronization:** Successfully bridged legacy `snake_case` fields from Supabase with sovereign `camelCase` properties in the UI domain.
 - **Protocol V8.0 Headers:** Injected Technical Headers in all modified files to ensure the "Why" and "Version" are permanently recorded.
 
+## 2026-04-20 - Crystal Purification & Axial Synchronization (V8.2)
+**Discovery:**
+- The `PodcastWithProfile` contract (Crystal) maintained `@deprecated` snake_case fields as a legacy bridge, creating nominal sovereignty fractures.
+- UI components like the `Offline Page` and Realtime channels in `Library Tabs` were consuming these legacy fields, violating the ZAP 2.0 doctrine.
+- Utility functions in `lib/podcast-utils.ts` utilized `any` and maintained duplicate mapping logic, compromising structural integrity.
+
+**Action:**
+- **Total Purge of Legacy Types:** Eliminated all `@deprecated` fields and snake_case fallbacks from `types/podcast.ts`.
+- **Axial Synchronization:** Refactored `app/(platform)/offline/page.tsx` and `app/(platform)/podcasts/library-tabs.tsx` to utilize strict sovereign descriptors (e.g., `identification`, `uniformResourceLocator`).
+- **Mapper Hardening:** Upgraded `lib/mappers/podcast-mapper.ts` and `lib/podcast-utils.ts` to enforce strict typing and erradicate `any` usage.
+- **Build Shield Sovereignty (BSS):** Verified zero TSC errors and validated administrative route protection via Playwright (Vision).
+- **Industrial Hygiene:** Conducted a full cleanup of development logs and test artifacts to maintain workstation integrity.
+
 ## 2026-05-15 - Industrialization & Traceability of Auth Periphery | **Discovery:** Auth routes (signup, forgot-password, login) were undocumented, used non-compliant nomenclature (ZAP violations), lacked transaction tracing, and lacked route-specific SEO Metadata. | **Action:** Injected NicePod Standard Headers (English keys), refactored to strict Zero Abbreviations Policy, integrated PostHog event captures for account creation, session starts, and access recovery, and established specific Metadata via route layouts.
 
 ## 2026-04-15 - Standardization & Traceability of Profile Bunker | **Discovery:** Profile route used non-compliant nomenclature (ZAP violations), Spanish header keys, lacked transaction tracing, and missing Industrial documentation. | **Action:** Injected NicePod Standard Header (English), enforced Zero Abbreviations Policy (ZAP) for all variables and logic blocks, integrated PostHog event capture for bunker access, and added Industrial JSDoc.

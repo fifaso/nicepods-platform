@@ -15,7 +15,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { ephemeralRealtimeSessionIdentification } from "@/lib/supabase/client";
 import { nicepodLog } from "@/lib/utils";
-import { PodcastWithProfile } from "@/types/podcast";
+import { PodcastWithProfile, PodcastRow, ProfileRow } from "@/types/podcast";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -97,7 +97,9 @@ export function usePodcastSync(initialPodcastData: PodcastWithProfile) {
         (databaseChangeEventPayload) => {
           if (!isHookMounted) return;
 
-          const updatedRecordEntry = mapDatabasePodcastToSovereignPodcast(databaseChangeEventPayload.new);
+          const updatedRecordEntry = mapDatabasePodcastToSovereignPodcast(
+            databaseChangeEventPayload.new as PodcastRow & { profiles?: ProfileRow | null }
+          );
           nicepodLog(`🔔 [Realtime:Sync] Pulso recibido para Nodo #${initialPodcastData.identification}: ${updatedRecordEntry.intelligenceProcessingStatus}`);
 
           synchronizeLocalPodcastStates(updatedRecordEntry);

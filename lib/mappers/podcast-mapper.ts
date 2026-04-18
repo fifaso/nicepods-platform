@@ -104,41 +104,8 @@ export function transformPodcastMetalToCrystal(
         username: rawDatabaseRecord.profiles.username,
         reputationScoreValue: rawDatabaseRecord.profiles.reputation_score,
         isVerifiedAccountStatus: rawDatabaseRecord.profiles.is_verified,
-        authorityRole: rawDatabaseRecord.profiles.role,
-        // Fallbacks SSR
-        full_name: rawDatabaseRecord.profiles.full_name,
-        avatar_url: rawDatabaseRecord.profiles.avatar_url,
-        reputation_score: rawDatabaseRecord.profiles.reputation_score,
-        is_verified: rawDatabaseRecord.profiles.is_verified,
-        role: rawDatabaseRecord.profiles.role
-    } : null,
-
-    // --- COMPATIBILIDAD AXIAL (LEGACY FALLBACKS / DEPRECATED) ---
-    id: rawDatabaseRecord.id,
-    user_id: rawDatabaseRecord.user_id,
-    parent_id: rawDatabaseRecord.parent_id,
-    title: rawDatabaseRecord.title,
-    description: rawDatabaseRecord.description,
-    status: rawDatabaseRecord.status,
-    processing_status: rawDatabaseRecord.processing_status,
-    audio_url: rawDatabaseRecord.audio_url,
-    cover_image_url: rawDatabaseRecord.cover_image_url,
-    duration_seconds: rawDatabaseRecord.duration_seconds,
-    created_at: rawDatabaseRecord.created_at,
-    like_count: Number(rawDatabaseRecord.like_count),
-    play_count: Number(rawDatabaseRecord.play_count),
-    creation_data: rawDatabaseRecord.creation_data as unknown as CreationMetadataPayload,
-    sources: rawDatabaseRecord.sources as unknown as ResearchSource[],
-    script_text: rawDatabaseRecord.script_text as unknown as PodcastScript,
-    ai_tags: rawDatabaseRecord.ai_tags,
-    geo_location: rawDatabaseRecord.geo_location as unknown as GeoLocation,
-    audio_ready: rawDatabaseRecord.audio_ready ?? false,
-    image_ready: rawDatabaseRecord.image_ready ?? false,
-    user_tags: rawDatabaseRecord.user_tags,
-    place_name: rawDatabaseRecord.place_name,
-    is_featured: rawDatabaseRecord.is_featured,
-    reviewed_by_user: rawDatabaseRecord.reviewed_by_user,
-    creation_mode: rawDatabaseRecord.creation_mode as unknown as CreationMetadataPayload['creationMode']
+        authorityRole: rawDatabaseRecord.profiles.role
+    } : null
   };
 
   return sovereignPodcastInstance;

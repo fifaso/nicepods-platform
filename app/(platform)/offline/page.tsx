@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WifiOff, PlayCircle, Clock, Headphones, Trash2 } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
+import { PodcastWithProfile } from "@/types/podcast";
 
 // Forzar estático puro
 export const dynamic = 'force-static';
@@ -16,7 +17,7 @@ const METADATA_KEY = "offline_podcasts_metadata";
 const CACHE_NAME = "supabase-media-cache";
 
 export default function OfflinePage() {
-  const [downloads, setDownloads] = useState<any[]>([]);
+  const [downloads, setDownloads] = useState<PodcastWithProfile[]>([]);
   const { playPodcastAction } = useAudio();
   // Estado de montaje para evitar errores de hidratación
   const [isMounted, setIsMounted] = useState(false);
@@ -27,25 +28,27 @@ export default function OfflinePage() {
     if (stored) {
         try {
             const library = JSON.parse(stored);
-            setDownloads(Object.values(library));
-        } catch (e) {
-            console.error("Error reading offline metadata", e);
+            setDownloads(Object.values(library) as PodcastWithProfile[]);
+        } catch (exception) {
+            console.error("Error reading offline metadata", exception);
         }
     }
   }, []);
 
-  const handleDelete = async (id: number, url: string) => {
+  const handleDelete = async (identification: number, uniformResourceLocator: string) => {
     if(!confirm("¿Borrar descarga?")) return;
     
     try {
         const cache = await caches.open(CACHE_NAME);
-        await cache.delete(url);
-    } catch(e) {}
+        await cache.delete(uniformResourceLocator);
+    } catch(exception) {
+        console.error("Error deleting from cache", exception);
+    }
 
     const stored = localStorage.getItem(METADATA_KEY);
     if (stored) {
         const library = JSON.parse(stored);
-        delete library[id];
+        delete library[identification];
         localStorage.setItem(METADATA_KEY, JSON.stringify(library));
         setDownloads(Object.values(library));
     }
@@ -86,16 +89,16 @@ export default function OfflinePage() {
                 </h2>
                 
                 {downloads.map((pod) => (
-                    <Card key={pod.id} className="bg-slate-900/80 border-slate-700 overflow-hidden hover:border-purple-500/50 transition-all cursor-pointer group">
+                    <Card key={pod.identification} className="bg-slate-900/80 border-slate-700 overflow-hidden hover:border-purple-500/50 transition-all cursor-pointer group">
                         <CardContent className="p-3 flex gap-4 items-center">
                             
                             {/* COVER IMAGEN [CORRECCIÓN]: Usamos <img> estándar */}
                             <div className="relative h-20 w-20 bg-black/40 rounded-lg flex-shrink-0 overflow-hidden shadow-lg border border-slate-700">
-                                 {pod.cover_image_url ? (
+                                 {pod.coverImageUniformResourceLocator ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img 
-                                        src={pod.cover_image_url} 
-                                        alt={pod.title} 
+                                        src={pod.coverImageUniformResourceLocator}
+                                        alt={pod.titleTextContent}
                                         className="object-cover w-full h-full"
                                         loading="eager" // Importante para cargar rápido desde caché
                                     />
@@ -114,10 +117,10 @@ export default function OfflinePage() {
                             
                             {/* Info */}
                             <div className="flex-1 min-w-0 py-1" onClick={() => playPodcastAction(pod)}>
-                                <h3 className="font-bold text-slate-100 truncate text-sm mb-1 leading-tight">{pod.title}</h3>
-                                <p className="text-xs text-slate-400 truncate mb-2">{pod.profiles?.full_name || 'Autor'}</p>
+                                <h3 className="font-bold text-slate-100 truncate text-sm mb-1 leading-tight">{pod.titleTextContent}</h3>
+                                <p className="text-xs text-slate-400 truncate mb-2">{pod.profiles?.fullName || 'Autor'}</p>
                                 <span className="inline-flex items-center gap-1 text-[10px] text-green-400 bg-green-950/30 px-2 py-0.5 rounded border border-green-900/50">
-                                    <Clock className="h-3 w-3" /> {Math.floor((pod.duration_seconds || 0)/60)} min
+                                    <Clock className="h-3 w-3" /> {Math.floor((pod.playbackDurationSecondsTotal || 0)/60)} min
                                 </span>
                             </div>
                             
@@ -125,7 +128,7 @@ export default function OfflinePage() {
                             <div className="flex flex-col justify-center border-l border-slate-800 pl-2 ml-1">
                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-950/20" onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDelete(pod.id, pod.audio_url);
+                                    handleDelete(pod.identification, pod.audioUniformResourceLocator);
                                 }}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>

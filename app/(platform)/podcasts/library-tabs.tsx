@@ -180,17 +180,21 @@ export function LibraryTabs({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${authenticatedUserIdentification}` },
         async (databaseChangeEventPayload) => {
+          const databaseRecordSnapshot = databaseChangeEventPayload.new as Tables<'micro_pods'>;
           if (databaseChangeEventPayload.eventType === 'INSERT' || databaseChangeEventPayload.eventType === 'UPDATE') {
             const { data: refreshedPodcastDataSnapshot } = await supabaseSovereignClient
               .from('micro_pods')
               .select('*, profiles(*)')
-              .eq('id', databaseChangeEventPayload.new.id)
+              .eq('id', databaseRecordSnapshot.id)
               .single();
 
             if (refreshedPodcastDataSnapshot) {
               setActiveCreatedPodcastsCollection(previousPodcastsCollection => {
-                const filteredPodcastsCollection = previousPodcastsCollection.filter(podcastItem => podcastItem.identification !== refreshedPodcastDataSnapshot.identification);
-                return [mapDatabasePodcastToSovereignPodcast(refreshedPodcastDataSnapshot), ...filteredPodcastsCollection];
+                const sovereignPodcastSnapshot = mapDatabasePodcastToSovereignPodcast(refreshedPodcastDataSnapshot);
+                const filteredPodcastsCollection = previousPodcastsCollection.filter(
+                    podcastItem => podcastItem.identification !== sovereignPodcastSnapshot.identification
+                );
+                return [sovereignPodcastSnapshot, ...filteredPodcastsCollection];
               });
             }
             navigationRouter.refresh();

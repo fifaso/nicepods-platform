@@ -59,7 +59,7 @@ export function IntelligentCreationJobAdministrativeCard({ jobSnapshot }: { jobS
           filter: `id=eq.${podcastIdentificationReference}`,
         },
         (databaseChangeEventPayload) => {
-          const freshPodSnapshot = databaseChangeEventPayload.new;
+          const freshPodSnapshot = databaseChangeEventPayload.new as MicroPodRow;
           let currentProgressMagnitude = PROGRESS_STAGES_PERCENTAGES.SCRIPT_CREATED;
           let statusTextContent = "Generando audio...";
 
