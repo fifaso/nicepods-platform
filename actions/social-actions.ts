@@ -20,7 +20,7 @@ export async function followUserAction(
 ): Promise<ProfileActionResponse<{ isFollowingSovereignty: boolean }>> {
   const supabaseSovereignClient = createClient();
 
-  // 1. HANDSHAKE DE SOBERANÍA
+  // 1. HANDSHAKE DE SOBERANÍA (DIS DOCTRINE)
   const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
   if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
     return {
@@ -104,11 +104,12 @@ export async function toggleLikeAction(
 ): Promise<ProfileActionResponse<{ isResonatingWithLike: boolean }>> {
   const supabaseSovereignClient = createClient();
 
+  // 1. PROTOCOLO DE AUTORIDAD (DIS DOCTRINE)
   const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
   if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
     return {
       isOperationSuccessful: false,
-      responseStatusMessage: "Inicie sesión para interactuar.",
+      responseStatusMessage: "SESIÓN_REQUERIDA: Inicie sesión para interactuar.",
       traceIdentification: "AUTH_FAIL"
     };
   }
