@@ -243,30 +243,31 @@ export async function ingestIntelligenceDossierAction(
   }
 ): Promise<GeoActionResponse<{ pointOfInterestIdentification: number; analysisResults: IntelligenceAgencyAnalysisData; locationMetadata: Record<string, unknown> }>> {
   
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   try {
-    const authorizedUserAuthor = await validateSovereignAccessAuthority();
+    const authorizedUserAuthorSnapshot = await validateSovereignAccessAuthority();
+    const authenticatedUserIdentification = authorizedUserAuthorSnapshot.id;
 
     // 1. VALIDACIÓN SOBERANA DE ENTRADA (BUILD SHIELD V4.1)
     const validatedIngestionData = PointOfInterestIngestionSchema.parse(intelligenceIngestaPayload);
-    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKeyContent = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     // 2. CONSTRUCCIÓN DE REFERENCIAS DE ACCESO DIRECTO PARA LA IA
-    const publicHeroUniformResourceLocator = supabaseClient.storage.from('podcasts').getPublicUrl(validatedIngestionData.heroImageStoragePath).data.publicUrl;
+    const publicHeroUniformResourceLocator = supabaseSovereignClient.storage.from('podcasts').getPublicUrl(validatedIngestionData.heroImageStoragePath).data.publicUrl;
     const publicOpticalCharacterRecognitionUniformResourceLocatorsCollection = validatedIngestionData.opticalCharacterRecognitionImagePaths.map(path => 
-      supabaseClient.storage.from('podcasts').getPublicUrl(path).data.publicUrl
+      supabaseSovereignClient.storage.from('podcasts').getPublicUrl(path).data.publicUrl
     );
 
     // 3. DESPACHO AL ORÁCULO DE BORDE (AGENTE 42)
-    const { data: agentResponseResults, error: edgeFunctionInvokeException } = await supabaseClient.functions.invoke('geo-sensor-ingestor', {
+    const { data: agentResponseResults, error: edgeFunctionInvokeException } = await supabaseSovereignClient.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedIngestionData,
         heroImageUniformResourceLocator: publicHeroUniformResourceLocator,
         opticalCharacterRecognitionImageUniformResourceLocatorsCollection: publicOpticalCharacterRecognitionUniformResourceLocatorsCollection,
-        userIdentification: authorizedUserAuthor.id
+        userIdentification: authenticatedUserIdentification
       },
-      headers: { Authorization: `Bearer ${serviceRoleSecretKey}` }
+      headers: { Authorization: `Bearer ${serviceRoleSecretKeyContent}` }
     });
 
     if (edgeFunctionInvokeException) throw new Error(`ORACLE_INGESTION_FAILURE: ${edgeFunctionInvokeException.message}`);
@@ -280,7 +281,7 @@ export async function ingestIntelligenceDossierAction(
      * [INTERVENCIÓN V14.0]: Garantiza que el nodo en la base de datos posea las URLs 
      * públicas definitivas antes de cerrar la transacción de ingesta.
      */
-    const { error: databaseUpdateException } = await supabaseClient
+    const { error: databaseUpdateException } = await supabaseSovereignClient
       .from('points_of_interest')
       .update({
         gallery_urls: [publicHeroUniformResourceLocator, ...publicOpticalCharacterRecognitionUniformResourceLocatorsCollection]
@@ -365,17 +366,18 @@ export async function publishSovereignChronicleAction(parameters: {
   durationSeconds: number;
 }): Promise<GeoActionResponse> {
   
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   try {
-    await validateSovereignAccessAuthority();
+    const authorizedUserAuthorSnapshot = await validateSovereignAccessAuthority();
+    const authenticatedUserIdentification = authorizedUserAuthorSnapshot.id;
 
-    const publicAudioUniformResourceLocator = supabaseClient.storage
+    const publicAudioUniformResourceLocator = supabaseSovereignClient.storage
       .from('podcasts')
       .getPublicUrl(parameters.chronicleStoragePath).data.publicUrl;
 
     // 1. Commit Físico y Activación de Resonancia en la Bóveda
-    const { error: databaseUpdateException } = await supabaseClient
+    const { error: databaseUpdateException } = await supabaseSovereignClient
       .from('points_of_interest')
       .update({
         ambient_audio_url: publicAudioUniformResourceLocator, 

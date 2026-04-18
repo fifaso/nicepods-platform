@@ -35,15 +35,17 @@ export async function createCollectionAction(
 ): Promise<ProfileActionResponse<{ collectionIdentification: string }>> {
   const supabaseClient = createClient();
 
-  // 1. HANDSHAKE DE SOBERANÍA
-  const { data: { user: authenticatedUser }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
-  if (authenticationExceptionInformation || !authenticatedUser) {
+  // 1. HANDSHAKE DE SOBERANÍA (DIS DOCTRINE)
+  const { data: { user: authenticatedUserSnapshot }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
+  if (authenticationExceptionInformation || !authenticatedUserSnapshot) {
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "SESIÓN_REQUERIDA: Inicie sesión para crear colecciones.",
       traceIdentification: "AUTH_FAIL"
     };
   }
+
+  const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   // 2. VALIDACIÓN DE INTEGRIDAD ESTRUCTURAL
   const validationResult = CreateCollectionWithItemsSchema.safeParse(rawSubmissionPayload);
@@ -63,7 +65,7 @@ export async function createCollectionAction(
     const { data: collectionDatabaseRecord, error: collectionDatabaseExceptionInformation } = await supabaseClient
       .from("collections")
       .insert({
-        owner_id: authenticatedUser.id,
+        owner_id: authenticatedUserIdentification,
         title,
         description: descriptionTextContent,
         is_public: isPublicSovereignty,
@@ -97,7 +99,7 @@ export async function createCollectionAction(
     const { data: profileDatabaseRecord } = await supabaseClient
       .from("profiles")
       .select("username")
-      .eq("id", authenticatedUser.id)
+      .eq("id", authenticatedUserIdentification)
       .single();
 
     if (profileDatabaseRecord?.username) {
@@ -129,12 +131,14 @@ export async function createCollectionAction(
  */
 export async function getMyCollections() {
   const supabaseClient = createClient();
-  const { data: { user: authenticatedUser } } = await supabaseClient.auth.getUser();
+  const { data: { user: authenticatedUserSnapshot } } = await supabaseClient.auth.getUser();
 
-  if (!authenticatedUser) {
+  if (!authenticatedUserSnapshot) {
     console.warn("🛑 [Curation-Engine] Intento de acceso a colecciones sin sesión.");
     return [];
   }
+
+  const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   try {
     const { data: collectionDatabaseResults, error: queryDatabaseExceptionInformation } = await supabaseClient
@@ -148,7 +152,7 @@ export async function getMyCollections() {
         updated_at,
         collection_items (count)
       `)
-      .eq("owner_id", authenticatedUser.id)
+      .eq("owner_id", authenticatedUserIdentification)
       .order("updated_at", { ascending: false });
 
     if (queryDatabaseExceptionInformation) throw queryDatabaseExceptionInformation;

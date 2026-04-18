@@ -116,13 +116,13 @@ export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowl
             message: "Inventario de Bóveda sincronizado con éxito.",
             data: knowledgeSourcesDatabaseResultsCollection as unknown as VaultKnowledgeSource[]
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][List-Sources]:", errorMessage);
+    } catch (exceptionMessageInformation: unknown) {
+        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+        console.error("🔥 [Vault-Action][List-Sources]:", exceptionMessageInformationText);
         return {
             success: false,
             message: "Fallo al recuperar el inventario de la Bóveda.",
-            exceptionMessageInformation: errorMessage,
+            exceptionMessageInformation: exceptionMessageInformationText,
             data: []
         };
     }
@@ -150,13 +150,13 @@ export async function deleteVaultSource(sourceIdentification: string): Promise<V
             message: "Fuente y vectores asociados eliminados de la Bóveda.",
             data: null
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][Delete-Source]:", errorMessage);
+    } catch (exceptionMessageInformation: unknown) {
+        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+        console.error("🔥 [Vault-Action][Delete-Source]:", exceptionMessageInformationText);
         return {
             success: false,
             message: "No se pudo procesar la eliminación de la fuente.",
-            exceptionMessageInformation: errorMessage,
+            exceptionMessageInformation: exceptionMessageInformationText,
             data: null
         };
     }
@@ -193,13 +193,13 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
             message: "Inteligencia inyectada y vectorizada correctamente.",
             data: null
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : String(vaultException);
-        console.error("🔥 [Vault-Action][Inject-Knowledge]:", errorMessage);
+    } catch (exceptionMessageInformation: unknown) {
+        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : String(exceptionMessageInformation);
+        console.error("🔥 [Vault-Action][Inject-Knowledge]:", exceptionMessageInformationText);
         return {
             success: false,
             message: "La Bóveda rechazó la inyección de conocimiento.",
-            exceptionMessageInformation: errorMessage,
+            exceptionMessageInformation: exceptionMessageInformationText,
             data: null
         };
     }
@@ -232,13 +232,13 @@ export async function simulateVaultSearch(
             message: "Simulación de búsqueda completada.",
             data: resonanceResultsData as SemanticResonanceNode[]
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][Simulate-Search]:", errorMessage);
+    } catch (exceptionMessageInformation: unknown) {
+        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+        console.error("🔥 [Vault-Action][Simulate-Search]:", exceptionMessageInformationText);
         return {
             success: false,
             message: "Error en la simulación de resonancia.",
-            exceptionMessageInformation: errorMessage,
+            exceptionMessageInformation: exceptionMessageInformationText,
             data: []
         };
     }
@@ -268,12 +268,12 @@ export async function getVaultMetrics(): Promise<VaultActionResponse<{
                 totalChunksCount: chunksCountResultsSnapshot.count || 0
             }
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
+    } catch (exceptionMessageInformation: unknown) {
+        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
         return {
             success: false,
             message: "No se pudieron obtener métricas del sistema.",
-            exceptionMessageInformation: errorMessage,
+            exceptionMessageInformation: exceptionMessageInformationText,
             data: null
         };
     }

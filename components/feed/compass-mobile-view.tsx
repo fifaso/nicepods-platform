@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: components/feed/compass-mobile-view.tsx
- * VERSIÓN: 4.0 (NicePod Resonance Compass - Mobile Sovereign Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 5.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
  * 
- * Misión: Brújula lineal optimizada para el descubrimiento situacional en dispositivos móviles.
- * [REFORMA V4.0]: Sincronización nominal total con PodcastCard V9.0, erradicación 
- * absoluta de abreviaturas y tipado estricto de métricas PostGIS (geo_distance).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Brújula lineal para dispositivos móviles.
+ * [REFORMA V5.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -25,10 +26,9 @@ import { PodcastWithProfile } from '@/types/podcast';
 
 /**
  * INTERFAZ: PodcastWithProximity
- * Extensión del contrato para incluir la métrica de distancia física de PostGIS.
  */
 interface PodcastWithProximity extends PodcastWithProfile {
-  geo_distance?: number;
+  geographicDistanceMagnitude?: number;
 }
 
 /**
@@ -49,24 +49,22 @@ export function CompassMobileView({
 
   /**
    * resonanceOrbits: 
-   * Misión: Organizar la inteligencia en tres niveles de profundidad geográfica.
    */
   const resonanceOrbits = useMemo(() => {
-    // Ordenamos la colección por proximidad física (métrica lineal PostGIS)
     const sortedPodcastCollection = [...podcastCollection].sort((podcastA, podcastB) => {
-      const distanceA = (podcastA as PodcastWithProximity).geo_distance || 0;
-      const distanceB = (podcastB as PodcastWithProximity).geo_distance || 0;
+      const distanceA = (podcastA as PodcastWithProximity).geographicDistanceMagnitude || 0;
+      const distanceB = (podcastB as PodcastWithProximity).geographicDistanceMagnitude || 0;
       return distanceA - distanceB;
     });
 
     return {
-      epicenterOrbit: sortedPodcastCollection.slice(0, 3),    // Resonancia Crítica (<1000m)
+      epicenterOrbit: sortedPodcastCollection.slice(0, 3),    // Resonancia Crítica
       urbanConnectionsOrbit: sortedPodcastCollection.slice(3, 8), // Conexiones de Ciudad
       globalExplorationOrbit: sortedPodcastCollection.slice(8)    // Malla Extendida
     };
   }, [podcastCollection]);
 
-  // --- CONFIGURACIÓN DE CINEMÁTICA VISUAL (FRAMER MOTION) ---
+  // --- CONFIGURACIÓN DE CINEMÁTICA VISUAL ---
   const containerAnimationVariants = {
     hidden: { opacity: 0 },
     visible: { 
@@ -91,7 +89,6 @@ export function CompassMobileView({
       initial="hidden"
       animate="visible"
     >
-      {/* SECTOR I: EPICENTRO DE SABIDURÍA (PROXIMIDAD INMEDIATA) */}
       {resonanceOrbits.epicenterOrbit.length > 0 && (
         <motion.div variants={itemAnimationVariants} className="space-y-6">
           <div className="flex items-center justify-between px-2">
@@ -112,20 +109,15 @@ export function CompassMobileView({
 
           <div className="space-y-4">
             {resonanceOrbits.epicenterOrbit.map((podcastItem) => (
-              <div key={podcastItem.id} className="relative group">
-                {/* Aura de integración pericial */}
+              <div key={podcastItem.identification} className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-indigo-500/20 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                
-                {/* [FIX V4.0]: Sincronización con PodcastCardProperties V9.0 */}
                 <PodcastCard initialPodcastData={podcastItem} />
-              
               </div>
             ))}
           </div>
         </motion.div>
       )}
 
-      {/* SECTOR II: CONEXIONES DE CIUDAD (ÓRBITA INTERMEDIA) */}
       {resonanceOrbits.urbanConnectionsOrbit.length > 0 && (
         <motion.div variants={itemAnimationVariants} className="space-y-6">
           <div className="flex items-center gap-3 px-2 opacity-60">
@@ -137,7 +129,7 @@ export function CompassMobileView({
           <div className="grid grid-cols-1 gap-4">
             {resonanceOrbits.urbanConnectionsOrbit.map((podcastItem) => (
               <PodcastCard 
-                key={podcastItem.id} 
+                key={podcastItem.identification}
                 initialPodcastData={podcastItem} 
               />
             ))}
@@ -145,7 +137,6 @@ export function CompassMobileView({
         </motion.div>
       )}
 
-      {/* SECTOR III: EXPLORACIÓN GLOBAL (MALLA EXTENDIDA) */}
       {resonanceOrbits.globalExplorationOrbit.length > 0 && (
         <motion.div variants={itemAnimationVariants} className="space-y-6">
           <div className="flex items-center gap-3 px-2 opacity-30">
@@ -157,7 +148,7 @@ export function CompassMobileView({
           <div className="grid grid-cols-1 gap-4 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
             {resonanceOrbits.globalExplorationOrbit.map((podcastItem) => (
               <PodcastCard 
-                key={podcastItem.id} 
+                key={podcastItem.identification}
                 initialPodcastData={podcastItem} 
               />
             ))}
@@ -165,23 +156,12 @@ export function CompassMobileView({
         </motion.div>
       )}
 
-      {/* FOOTER DE CONCIENCIA TÉCNICA */}
       <div className="py-10 flex flex-col items-center gap-4 opacity-10">
         <div className="h-px w-20 bg-zinc-800" />
         <p className="text-[8px] font-black uppercase tracking-[0.8em] text-white text-center leading-relaxed">
-          Resonance Engine V4.0 <br /> Madrid Sovereign Link
+          Resonance Engine V7.0 <br /> Madrid Sovereign Link
         </p>
       </div>
     </motion.div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Contract Alignment: Se neutralizaron los tres errores TS2322 inyectando 
- *    'initialPodcastData' en todas las instancias de PodcastCard.
- * 2. Zero Abbreviations Policy: Se purificaron términos como 'p', 'orbits', 'i' 
- *    y 'id', asegurando la soberanía nominal en la vista móvil.
- * 3. Strict Type Integrity: Se eliminó el uso de 'any' en la lógica de ordenación 
- *    mediante la interfaz 'PodcastWithProximity'.
- */

@@ -1,16 +1,13 @@
 /**
  * ARCHIVO: hooks/use-podcast-sync.ts
- * VERSIÓN: 5.0 (NicePod Realtime-Polling Hybrid - Ephemeral Session Isolation Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * VERSIÓN: 6.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
  * 
- * Misión: Garantizar la sincronía bidireccional entre el Metal (Base de Datos) 
- * y el Cristal (UI) mediante una arquitectura híbrida de WebSocket y Polling, 
- * con aislamiento absoluto de canal para prevenir fallos de secuencia.
- * [REFORMA V5.0]: Implementación del 'Ephemeral Session Isolation'. Integración 
- * de 'ephemeralRealtimeSessionIdentification' en el identificador de canal 
- * para aniquilar el error 'cannot add callbacks after subscribe'. Purificación 
- * nominal absoluta (ZAP) y blindaje total del Build Shield (BSS).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Garantizar la sincronía bidireccional entre el Metal y el Cristal.
+ * [REFORMA V6.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -22,6 +19,7 @@ import { PodcastWithProfile } from "@/types/podcast";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { mapDatabasePodcastToSovereignPodcast } from "@/lib/podcast-utils";
 
 /**
  * usePodcastSync: El motor de sincronía de alta fidelidad para crónicas individuales.
@@ -35,75 +33,57 @@ export function usePodcastSync(initialPodcastData: PodcastWithProfile) {
 
   const navigationRouter = useRouter();
 
-  // --- I. ESTADO SOBERANO (Fuente de Verdad de la Interfaz) ---
+  // --- I. ESTADO SOBERANO ---
   const [activePodcast, setActivePodcast] = useState<PodcastWithProfile>(initialPodcastData);
-  const [isAudioBufferReady, setIsAudioBufferReady] = useState<boolean>(!!initialPodcastData.audio_ready);
-  const [isCoverImageReady, setIsCoverImageReady] = useState<boolean>(!!initialPodcastData.image_ready);
-  const [operationalProcessingStatus, setOperationalProcessingStatus] = useState<string>(initialPodcastData.processing_status || 'pending');
+  const [isAudioBufferReady, setIsAudioBufferReady] = useState<boolean>(initialPodcastData.isAudioReady);
+  const [isCoverImageReady, setIsCoverImageReady] = useState<boolean>(initialPodcastData.isImageReady);
+  const [operationalProcessingStatus, setOperationalProcessingStatus] = useState<string>(initialPodcastData.intelligenceProcessingStatus || 'pending');
 
-  // --- II. REFERENCIAS DE CONTROL DE HARDWARE Y RED (HYGIENE) ---
+  // --- II. REFERENCIAS DE CONTROL ---
   const realtimeSubscriptionChannelReference = useRef<RealtimeChannel | null>(null);
   const pollingProcessIntervalReference = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * synchronizeLocalPodcastStates: 
-   * Actualizador atómico para la malla de estados locales basado en datos frescos del Metal.
    */
-  const synchronizeLocalPodcastStates = useCallback((freshPodcastData: Partial<PodcastWithProfile>) => {
-    if (freshPodcastData.audio_ready !== undefined) {
-      setIsAudioBufferReady(!!freshPodcastData.audio_ready);
-    }
-    if (freshPodcastData.image_ready !== undefined) {
-      setIsCoverImageReady(!!freshPodcastData.image_ready);
-    }
-    if (freshPodcastData.processing_status !== undefined) {
-      setOperationalProcessingStatus(freshPodcastData.processing_status as string);
-    }
+  const synchronizeLocalPodcastStates = useCallback((freshPodcastData: PodcastWithProfile) => {
+    setIsAudioBufferReady(freshPodcastData.isAudioReady);
+    setIsCoverImageReady(freshPodcastData.isImageReady);
+    setOperationalProcessingStatus(freshPodcastData.intelligenceProcessingStatus);
 
-    setActivePodcast((previousPodcastData) => ({
-      ...previousPodcastData,
-      ...freshPodcastData
-    }));
+    setActivePodcast(freshPodcastData);
   }, []);
 
   /**
    * fetchLatestPodcastStatusFromMetal: 
-   * Protocolo de sondeo de seguridad (Polling) para recuperación ante latencia de red.
    */
   const fetchLatestPodcastStatusFromMetal = useCallback(async () => {
-    if (!supabaseSovereignClient || !initialPodcastData.id) return;
+    if (!supabaseSovereignClient || !initialPodcastData.identification) return;
 
     const { data: refreshedPodcastDataSnapshot, error: databaseOperationException } = await supabaseSovereignClient
       .from('micro_pods')
       .select('*, profiles(*)')
-      .eq('id', initialPodcastData.id)
+      .eq('id', initialPodcastData.identification)
       .single();
 
     if (!databaseOperationException && refreshedPodcastDataSnapshot) {
-      synchronizeLocalPodcastStates(refreshedPodcastDataSnapshot as PodcastWithProfile);
+      synchronizeLocalPodcastStates(mapDatabasePodcastToSovereignPodcast(refreshedPodcastDataSnapshot));
     }
-  }, [supabaseSovereignClient, initialPodcastData.id, synchronizeLocalPodcastStates]);
+  }, [supabaseSovereignClient, initialPodcastData.identification, synchronizeLocalPodcastStates]);
 
   /**
    * EFECTO: MultichannelSincronizationSentinel
-   * Misión: Mantener el túnel WebSocket y el sondeo activos con aislamiento de sesión.
    */
   useEffect(() => {
-    // 1. GUARDA DE AUTORIDAD: Evitar ejecución prematura durante la hidratación.
-    if (!supabaseSovereignClient || isInitialHandshakeLoading || !isUserAuthenticated || !initialPodcastData.id) {
+    if (!supabaseSovereignClient || isInitialHandshakeLoading || !isUserAuthenticated || !initialPodcastData.identification) {
       return;
     }
 
     let isHookMounted = true;
 
-    /**
-     * 2. IGNICIÓN DE CANAL REALTIME CON AISLAMIENTO DE SESIÓN
-     * [SINCRO V5.0]: Inyección de 'ephemeralRealtimeSessionIdentification' para 
-     * evitar colisiones de caché en el SDK de Supabase.
-     */
-    const uniqueChannelIdentification = `pod_sync_${initialPodcastData.id}:${ephemeralRealtimeSessionIdentification}:sync`;
+    const uniqueChannelIdentification = `pod_sync_${initialPodcastData.identification}:${ephemeralRealtimeSessionIdentification}:sync`;
 
-    nicepodLog(`🛰️ [Realtime:Sync] Activando radar para Nodo #${initialPodcastData.id}`);
+    nicepodLog(`🛰️ [Realtime:Sync] Activando radar para Nodo #${initialPodcastData.identification}`);
 
     const podcastChannelInstance = supabaseSovereignClient.channel(uniqueChannelIdentification)
       .on(
@@ -112,18 +92,17 @@ export function usePodcastSync(initialPodcastData: PodcastWithProfile) {
           event: 'UPDATE',
           schema: 'public',
           table: 'micro_pods',
-          filter: `id=eq.${initialPodcastData.id}`,
+          filter: `id=eq.${initialPodcastData.identification}`,
         },
         (databaseChangeEventPayload) => {
           if (!isHookMounted) return;
 
-          const updatedRecordEntry = databaseChangeEventPayload.new as PodcastWithProfile;
-          nicepodLog(`🔔 [Realtime:Sync] Pulso recibido para Nodo #${initialPodcastData.id}: ${updatedRecordEntry.processing_status}`);
+          const updatedRecordEntry = mapDatabasePodcastToSovereignPodcast(databaseChangeEventPayload.new);
+          nicepodLog(`🔔 [Realtime:Sync] Pulso recibido para Nodo #${initialPodcastData.identification}: ${updatedRecordEntry.intelligenceProcessingStatus}`);
 
           synchronizeLocalPodcastStates(updatedRecordEntry);
 
-          // Sincronización SSR: Forzamos refresco de ruta si el proceso ha culminado con éxito.
-          if (updatedRecordEntry.processing_status === 'completed') {
+          if (updatedRecordEntry.intelligenceProcessingStatus === 'completed') {
             navigationRouter.refresh();
           }
         }
@@ -137,18 +116,12 @@ export function usePodcastSync(initialPodcastData: PodcastWithProfile) {
       }
     });
 
-    // 3. POLLING DE RESILIENCIA (PILAR 2 - SSS)
-    // Frecuencia de 5 segundos para garantizar la integridad si el WebSocket se interrumpe.
     pollingProcessIntervalReference.current = setInterval(() => {
       if (isHookMounted) {
         fetchLatestPodcastStatusFromMetal();
       }
     }, 5000);
 
-    /**
-     * 4. PROTOCOLO DE DESCONEXIÓN ATÓMICA (HARDWARE HYGIENE)
-     * Misión: Liberar el bus de red y aniquilar procesos de sondeo al desmontar el gancho.
-     */
     return () => {
       isHookMounted = false;
 
@@ -162,13 +135,13 @@ export function usePodcastSync(initialPodcastData: PodcastWithProfile) {
         pollingProcessIntervalReference.current = null;
       }
 
-      nicepodLog(`🔌 [Realtime:Sync] Radar desconectado para Nodo #${initialPodcastData.id}`);
+      nicepodLog(`🔌 [Realtime:Sync] Radar desconectado para Nodo #${initialPodcastData.identification}`);
     };
   }, [
     supabaseSovereignClient,
     isUserAuthenticated,
     isInitialHandshakeLoading,
-    initialPodcastData.id,
+    initialPodcastData.identification,
     synchronizeLocalPodcastStates,
     navigationRouter,
     fetchLatestPodcastStatusFromMetal
@@ -183,13 +156,3 @@ export function usePodcastSync(initialPodcastData: PodcastWithProfile) {
     isConstructing: operationalProcessingStatus === 'processing' || operationalProcessingStatus === 'pending'
   };
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. Ephemeral Session Isolation: Se ha erradicado definitivamente el error de 
- *    callback de Supabase al garantizar nombres de canal únicos por sesión de usuario.
- * 2. ZAP Absolute Compliance: Purificación nominal total de variables internas y 
- *    parámetros de función (newData -> freshPodcastData, payload -> databaseChangeEventPayload).
- * 3. Build Shield Sovereignty: Se eliminó el uso de 'any' en las referencias de 
- *    intervalo y router, satisfaciendo el régimen de tipado estricto.
- */

@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/profile/profile-action-hub.tsx
- * VERSIÓN: 2.0 (NicePod Profile Action Hub - Sovereign Interaction Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 3.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
  * 
- * Misión: Gestionar los accesos de autoridad a la Bóveda Global y orquestar 
- * el inicio del protocolo de Remix para la expansión del capital intelectual.
- * [REFORMA V2.0]: Sincronización nominal total con ProfileView V11.0, erradicación 
- * absoluta de abreviaturas y blindaje de contratos para el Build Shield.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Gestionar los accesos de autoridad a la Bóveda Global.
+ * [REFORMA V3.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -28,8 +28,6 @@ import { Button } from "@/components/ui/button";
 
 /**
  * INTERFAZ: ProfileActionHubProperties
- * Misión: Definir el contrato de visibilidad para las acciones de salida pericial.
- * [FIX V2.0]: Alineación con el despacho del orquestador superior.
  */
 interface ProfileActionHubProperties {
   podcastIdentification: number;
@@ -61,7 +59,6 @@ export function ProfileActionHub({
   const navigationRouter = useRouter();
   const [isRemixInterfaceOpen, setIsRemixInterfaceOpen] = useState<boolean>(false);
 
-  // No renderizamos comandos de acción si la inteligencia aún se está materializando.
   if (isIntelligenceConstructing) {
     return null;
   }
@@ -71,7 +68,6 @@ export function ProfileActionHub({
 
       <AnimatePresence mode="wait">
         
-        {/* ACCIÓN I: ACCESO A BÓVEDA GLOBAL (Navegación Inmersiva) */}
         {isAdministratorOwner && publicationStatus === 'published' && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -91,7 +87,6 @@ export function ProfileActionHub({
           </motion.div>
         )}
 
-        {/* ACCIÓN II: PROTOCOLO REMIX (Expansión de Frecuencia) */}
         {publicationStatus === 'published' && isUserAuthenticated && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
@@ -112,34 +107,23 @@ export function ProfileActionHub({
         )}
       </AnimatePresence>
 
-      {/* DIÁLOGO DE REMIX: Inyección de contexto de inteligencia */}
       {isRemixInterfaceOpen && (
         <RemixDialog
-          isOpen={isRemixInterfaceOpen}
-          onOpenChange={setIsRemixInterfaceOpen}
-          parentPodcast={{
-            id: podcastIdentification,
-            title: podcastTitle,
-            author: {
-              full_name: authorDisplayName,
-              avatar_url: authorAvatarUniformResourceLocator
+          isInterfaceOpenStatus={isRemixInterfaceOpen}
+          onInterfaceOpenChangeAction={setIsRemixInterfaceOpen}
+          parentPodcastSnapshot={{
+            identification: podcastIdentification,
+            titleTextContent: podcastTitle,
+            authorProfile: {
+              fullName: authorDisplayName,
+              avatarUniformResourceLocator: authorAvatarUniformResourceLocator
             }
           }}
-          quoteContext={narrativeScriptPlain.substring(0, 500)}
-          timestamp={0}
+          quoteContextText={narrativeScriptPlain.substring(0, 500)}
+          playbackTimestampMagnitude={0}
         />
       )}
 
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Build Shield Compliance: Se sustituyó 'podcastId' por 'podcastIdentification', 
- *    resolviendo el error TS2322 detectado en el orquestador de perfil.
- * 2. Zero Abbreviations Policy: Purificación absoluta de términos (navigationRouter, 
- *    isRemixInterfaceOpen, authorAvatarUniformResourceLocator).
- * 3. Atomic State Management: El componente centraliza el disparo del RemixDialog 
- *    utilizando el contexto purificado de la narrativa (narrativeScriptPlain).
- */

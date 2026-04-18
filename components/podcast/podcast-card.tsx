@@ -1,13 +1,14 @@
 /**
  * ARCHIVO: components/podcast/podcast-card.tsx
- * VERSIÓN: 9.0 (NicePod Interactive Card - Nominal Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 10.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
  * 
  * Misión: Renderizar la unidad de conocimiento con navegabilidad atómica, 
  * gestionando estados de forja y protegiendo la integridad del Main Thread.
- * [REFORMA V9.0]: Cumplimiento absoluto de la Zero Abbreviations Policy y 
- * alineación con el contrato de datos V4.0.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * [REFORMA V10.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -44,11 +45,11 @@ export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: Pod
   const { playPodcastAction, currentActivePodcast, isAudioPlaying } = useAudio();
 
   // --- I. EVALUACIÓN DE ESTADO INDUSTRIAL ---
-  const isIntelligenceReady = initialPodcastData.processing_status === 'completed';
-  const isCurrentlyPlaying = currentActivePodcast?.id === initialPodcastData.id && isAudioPlaying;
+  const isIntelligenceReady = initialPodcastData.intelligenceProcessingStatus === 'completed';
+  const isCurrentlyPlaying = currentActivePodcast?.identification === initialPodcastData.identification && isAudioPlaying;
 
   // --- II. EXTRACCIÓN DE IDENTIDAD SOBERANA ---
-  const authorDisplayName = initialPodcastData.profiles?.full_name || "Creador NicePod";
+  const authorDisplayName = initialPodcastData.profiles?.fullName || "Creador NicePod";
   const authorUsernameIdentification = initialPodcastData.profiles?.username || "admin";
 
   /**
@@ -56,13 +57,13 @@ export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: Pod
    * Misión: Prevenir errores de carga en el motor Next/Image mediante validación previa.
    */
   const coverImageUniformResourceLocator = useMemo(() => 
-    getSafeAsset(initialPodcastData.cover_image_url, 'cover'), 
-    [initialPodcastData.cover_image_url]
+    getSafeAsset(initialPodcastData.coverImageUniformResourceLocator, 'cover'),
+    [initialPodcastData.coverImageUniformResourceLocator]
   );
 
   const authorProfileImageUniformResourceLocator = useMemo(() => 
-    getSafeAsset(initialPodcastData.profiles?.avatar_url, 'avatar'), 
-    [initialPodcastData.profiles?.avatar_url]
+    getSafeAsset(initialPodcastData.profiles?.avatarUniformResourceLocator, 'avatar'),
+    [initialPodcastData.profiles?.avatarUniformResourceLocator]
   );
 
   /**
@@ -71,7 +72,7 @@ export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: Pod
    */
   const handleCardSelectionAction = () => {
     if (isIntelligenceReady) {
-      navigationRouter.push(`/podcast/${initialPodcastData.id}`);
+      navigationRouter.push(`/podcast/${initialPodcastData.identification}`);
     }
   };
 
@@ -112,7 +113,7 @@ export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: Pod
       <div className="relative w-full h-52 flex-shrink-0">
         <Image
           src={coverImageUniformResourceLocator}
-          alt={initialPodcastData.title}
+          alt={initialPodcastData.titleTextContent}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           quality={80}
@@ -124,7 +125,7 @@ export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: Pod
 
         {/* Indicador de Disponibilidad de Inteligencia */}
         <div className="absolute top-5 left-5 z-20">
-          {initialPodcastData.audio_url && isIntelligenceReady && (
+          {initialPodcastData.audioUniformResourceLocator && isIntelligenceReady && (
             <Badge className="bg-primary/10 text-primary border-primary/20 font-black text-[8px] uppercase tracking-[0.2em] px-3 py-1.5 rounded-lg backdrop-blur-md">
               Resonancia Activa
             </Badge>
@@ -156,10 +157,10 @@ export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: Pod
       {/* --- CAPA SUPERFICIAL: DOSSIER NARRATIVO --- */}
       <CardContent className="p-7 flex-grow flex flex-col relative z-20">
         <CardTitle className="text-xl font-black uppercase tracking-tighter text-white leading-tight group-hover:text-primary transition-colors line-clamp-2 italic font-serif">
-          {initialPodcastData.title}
+          {initialPodcastData.titleTextContent}
         </CardTitle>
         <CardDescription className="text-sm text-zinc-500 mt-3 line-clamp-2 flex-grow leading-relaxed font-medium">
-          {initialPodcastData.description}
+          {initialPodcastData.descriptionTextContent}
         </CardDescription>
 
         <div className="flex items-center text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 pt-8 mt-auto border-t border-white/5">
@@ -187,7 +188,7 @@ export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: Pod
               <>
                 <Clock className="h-3 w-3" />
                 <span className="tabular-nums tracking-widest">
-                  {initialPodcastData.duration_seconds ? formatTime(initialPodcastData.duration_seconds) : '0:00'}
+                  {initialPodcastData.playbackDurationSecondsTotal ? formatTime(initialPodcastData.playbackDurationSecondsTotal) : '0:00'}
                 </span>
               </>
             ) : (
@@ -203,12 +204,9 @@ export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: Pod
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.0):
- * 1. Zero Abbreviations Policy: Se purificaron términos como 'props', 'podcast', 'id', 'router' 
- *    e 'isReady' para garantizar el cumplimiento del Dogma Técnico NicePod.
- * 2. Event Isolation: Se implementaron manejadores específicos (handlePlaybackToggleAction) 
- *    que utilizan 'stopPropagation' para asegurar que las acciones internas no disparen 
- *    la navegación de la tarjeta padre.
- * 3. Asset Integrity: La normalización mediante 'getSafeAsset' y el uso de 'useMemo' para 
- *    las URLs de imágenes previene colapsos de renderizado y optimiza el consumo de VRAM.
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Build Shield Compliance: Sincronización axial con el contrato V7.0. Se eliminaron
+ *    todas las fugas de snake_case (id -> identification, title -> titleTextContent, etc).
+ * 2. ZAP Absolute Compliance: Purificación total de la nomenclatura en el Crystal.
+ * 3. Audio Context Sync: Alineación con 'identification' para el rastreo de reproducción activa.
  */

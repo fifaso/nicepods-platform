@@ -1,14 +1,24 @@
-// app/collection/[id]/page.tsx
-// VERSIÓN: 1.0 (Public Journey Landing)
+/**
+ * ARCHIVO: app/(platform)/collection/[id]/page.tsx
+ * VERSIÓN: 2.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * Misión: Página de aterrizaje pública para colecciones de crónicas.
+ * [REFORMA V2.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
+ */
 
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { CollectionJourneyView } from "@/components/social/collection-journey-view"; // Asumimos este nombre para el cliente
+import { CollectionJourneyView } from "@/components/social/collection-journey-view";
+import { mapDatabasePodcastToSovereignPodcast } from "@/lib/podcast-utils";
 
 export default async function CollectionPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
+  const supabaseSovereignClient = createClient();
 
-  const { data: collection, error } = await supabase
+  const { data: collectionRecord, error: queryHardwareException } = await supabaseSovereignClient
     .from("collections")
     .select(`
       *,
@@ -16,26 +26,41 @@ export default async function CollectionPage({ params }: { params: { id: string 
       collection_items (
         pod_id,
         micro_pods (
-          id, title, description, audio_url, cover_image_url, duration_seconds,
-          profiles ( full_name, avatar_url, username )
+          *,
+          profiles ( * )
         )
       )
     `)
     .eq("id", params.id)
     .single();
 
-  if (error || !collection) notFound();
+  if (queryHardwareException || !collectionRecord) notFound();
 
-  // Transformar la estructura anidada de collection_items a un array plano de podcasts
-  const podcasts = collection.collection_items
+  // Mapeo Soberano de la colección de activos
+  const podcastsCollection = (collectionRecord.collection_items || [])
     .map((item: any) => item.micro_pods)
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((podcastRow: any) => mapDatabasePodcastToSovereignPodcast(podcastRow));
+
+  // Purificación Nominal de la Colección
+  const purifiedCollection = {
+    identification: collectionRecord.id,
+    ownerUserIdentification: collectionRecord.owner_id,
+    title: collectionRecord.title,
+    descriptionTextContent: collectionRecord.description,
+    isPublicSovereignty: collectionRecord.is_public,
+    coverImageUniformResourceLocator: collectionRecord.cover_image_url,
+    totalListenedCount: collectionRecord.total_listened_count,
+    likesCountTotal: collectionRecord.likes_count,
+    updateTimestamp: collectionRecord.updated_at,
+    profiles: collectionRecord.profiles
+  };
 
   return (
     <div className="min-h-screen bg-transparent pt-24 pb-20 px-4">
       <CollectionJourneyView 
-        collection={collection} 
-        podcasts={podcasts} 
+        collectionSnapshot={purifiedCollection as any}
+        podcastsCollection={podcastsCollection}
       />
     </div>
   );

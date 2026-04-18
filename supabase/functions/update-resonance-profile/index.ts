@@ -1,151 +1,174 @@
 // supabase/functions/update-resonance-profile/index.ts
 // VERSIÓN: 2.0.0 (Guard Integrated: Sentry + Arcjet + Weighted Resonance)
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
+import { guard, GuardContext } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
 import { corsHeaders } from '../_shared/cors.ts';
 
-const EVENT_LIMIT = 30;
+const RECENT_EVENTS_LIMIT_MAGNITUDE = 30;
 
-// Definimos los pesos base para cada tipo de interacción.
-const INTERACTION_WEIGHTS: Record<string, number> = {
+// Definimos los pesos base para cada tipo de interacción (Nominal Sovereignty).
+const INTERACTION_TYPE_WEIGHTS_MAP: Record<string, number> = {
   'liked': 1.5,
   'completed_playback': 1.0,
 };
 
-// --- LÓGICA DE NEGOCIO (HANDLER) ---
-const handler = async (req: Request): Promise<Response> => {
-  // El Guard maneja OPTIONS y CORS automáticamente
+/**
+ * calculateUserResonanceOrchestrator:
+ * Misión: Recalcular el centro de gravedad semántico-espacial del usuario con integridad perimetral.
+ */
+const calculateUserResonanceOrchestrator = async (request: Request, context: GuardContext): Promise<Response> => {
+  const correlationIdentification = context.correlationIdentification;
 
-  // 1. VALIDACIÓN DE ENTORNO
+  // 1. VALIDACIÓN DE ENTORNO SOBERANO
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("FATAL: SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no están configurados.");
+    throw new Error("INFRASTRUCTURE_CONFIGURATION_FATAL: SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no configurados.");
   }
 
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabaseSovereignAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
-    const payload = await req.json();
-    const userId = payload?.record?.user_id;
+    const interactionEventPayload = await request.json();
+    const userIdentification = interactionEventPayload?.record?.user_id;
 
-    if (!userId) {
-      // Error de Negocio (Bad Request) -> No reportar a Sentry como crítico
-      return new Response(JSON.stringify({ error: "Payload inválido, falta user_id." }), { 
+    if (!userIdentification) {
+      return new Response(JSON.stringify({
+        error: "PAYLOAD_INVALIDO: Se requiere user_identification en el registro.",
+        trace_identification: correlationIdentification
+      }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
 
-    console.log(`🚀 Iniciando recálculo de resonancia para el usuario: ${userId}`);
+    // PROTOCOLO DE AUTORIDAD: Solo permitimos que la infraestructura (Triggers) o el propio usuario activen esto.
+    if (!context.isTrusted) {
+      const authorizationHeader = request.headers.get('Authorization');
+      if (!authorizationHeader) throw new Error("ACCESO_DENEGADO: Se requiere autorización perimetral.");
+
+      const { data: { user: authenticatedUserSnapshot }, error: authException } = await supabaseSovereignAdmin.auth.getUser(authorizationHeader.replace("Bearer ", ""));
+      if (authException || !authenticatedUserSnapshot || authenticatedUserSnapshot.id !== userIdentification) {
+        throw new Error("VIOLACION_DE_AUTORIDAD: No se permite recalcular resonancia ajena.");
+      }
+    }
+
+    console.info(`🚀 [Resonance-Engine][${correlationIdentification}] Recalculando pulso para: ${userIdentification}`);
 
     // 2. OBTENCIÓN DE DATOS (PARALELO)
     const [
-      { data: recentPlays, error: playsError },
-      { data: recentLikes, error: likesError }
+      { data: recentPlaybackEventsCollection, error: playbackHardwareExceptionInformation },
+      { data: recentLikesCollection, error: likesHardwareExceptionInformation }
     ] = await Promise.all([
-      supabaseAdmin.from('playback_events').select('podcast_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(EVENT_LIMIT),
-      supabaseAdmin.from('likes').select('podcast_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(EVENT_LIMIT)
+      supabaseSovereignAdmin.from('playback_events').select('podcast_id, created_at').eq('user_id', userIdentification).order('created_at', { ascending: false }).limit(RECENT_EVENTS_LIMIT_MAGNITUDE),
+      supabaseSovereignAdmin.from('likes').select('podcast_id, created_at').eq('user_id', userIdentification).order('created_at', { ascending: false }).limit(RECENT_EVENTS_LIMIT_MAGNITUDE)
     ]);
 
-    if (playsError) throw new Error(`Error fetching plays: ${playsError.message}`);
-    if (likesError) throw new Error(`Error fetching likes: ${likesError.message}`);
+    if (playbackHardwareExceptionInformation) throw new Error(`FETCH_PLAYBACK_FAIL: ${playbackHardwareExceptionInformation.message}`);
+    if (likesHardwareExceptionInformation) throw new Error(`FETCH_LIKES_FAIL: ${likesHardwareExceptionInformation.message}`);
 
-    // 3. PROCESAMIENTO DE INTERACCIONES
-    const combinedInteractions = [
-      ...(recentPlays || []).map(p => ({ ...p, type: 'completed_playback' as const })),
-      ...(recentLikes || []).map(l => ({ ...l, type: 'liked' as const }))
+    // 3. PROCESAMIENTO DE INTERACCIONES UNIFICADAS
+    const combinedInteractionsCollection = [
+      ...(recentPlaybackEventsCollection || []).map(playbackEvent => ({ ...playbackEvent, type: 'completed_playback' as const })),
+      ...(recentLikesCollection || []).map(likeEvent => ({ ...likeEvent, type: 'liked' as const }))
     ];
 
-    combinedInteractions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    combinedInteractionsCollection.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    const recentInteractions = combinedInteractions.slice(0, EVENT_LIMIT);
+    const prioritizedInteractionsCollection = combinedInteractionsCollection.slice(0, RECENT_EVENTS_LIMIT_MAGNITUDE);
 
-    if (recentInteractions.length === 0) {
-      return new Response(JSON.stringify({ message: "No hay interacciones recientes para este usuario." }), { 
+    if (prioritizedInteractionsCollection.length === 0) {
+      return new Response(JSON.stringify({ message: "SILENCIO_OPERATIVO: No hay interacciones recientes para este Voyager." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
     
-    const podcastIds = [...new Set(recentInteractions.map(event => event.podcast_id))];
+    const relevantPodcastIdentificationsCollection = [...new Set(prioritizedInteractionsCollection.map(event => event.podcast_id))];
     
-    const { data: podcasts, error: podcastsError } = await supabaseAdmin
+    const { data: podcastsDatabaseResultsCollection, error: queryHardwareExceptionInformation } = await supabaseSovereignAdmin
       .from('micro_pods')
       .select('id, final_coordinates')
-      .in('id', podcastIds)
+      .in('id', relevantPodcastIdentificationsCollection)
       .not('final_coordinates', 'is', null);
 
-    if (podcastsError) throw new Error(`Error fetching podcasts: ${podcastsError.message}`);
+    if (queryHardwareExceptionInformation) throw new Error(`FETCH_PODCASTS_GEOMETRY_FAIL: ${queryHardwareExceptionInformation.message}`);
     
-    if (!podcasts || podcasts.length === 0) {
-      return new Response(JSON.stringify({ message: "Los podcasts asociados no tienen coordenadas." }), { 
+    if (!podcastsDatabaseResultsCollection || podcastsDatabaseResultsCollection.length === 0) {
+      return new Response(JSON.stringify({ message: "GEOMETRIA_INSUFICIENTE: Los activos asociados carecen de coordenadas." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
 
-    const coordinatesMap = new Map(podcasts.map(p => [p.id, p.final_coordinates]));
+    const podcastCoordinatesMap = new Map(podcastsDatabaseResultsCollection.map(p => [p.id, p.final_coordinates]));
 
-    // 4. CÁLCULO PONDERADO (ALGORITMO DE RESONANCIA)
-    let weightedSumX = 0;
-    let weightedSumY = 0;
-    let totalWeight = 0;
+    // 4. CÁLCULO PONDERADO (ALGORITMO DE RESONANCIA SOBERANO)
+    let weightedSumLongitudeX = 0;
+    let weightedSumLatitudeY = 0;
+    let totalInteractionWeightMagnitude = 0;
 
-    recentInteractions.forEach((interaction, index) => {
-      // Supabase devuelve las coordenadas como string "(x,y)"
-      const coordsString = coordinatesMap.get(interaction.podcast_id) as string | undefined;
+    prioritizedInteractionsCollection.forEach((interaction, eventIndex) => {
+      const coordinateStringValue = podcastCoordinatesMap.get(interaction.podcast_id) as string | undefined;
       
-      if (coordsString) {
+      if (coordinateStringValue) {
         // Parseo robusto de coordenadas Postgres Point
-        const match = coordsString.match(/\(([^,]+),([^)]+)\)/);
-        if (match) {
-            const coords = { x: parseFloat(match[1]), y: parseFloat(match[2]) };
+        const coordinateMatchResults = coordinateStringValue.match(/\(([^,]+),([^)]+)\)/);
+        if (coordinateMatchResults) {
+            const geodeticCoordinates = {
+              longitudeX: parseFloat(coordinateMatchResults[1]),
+              latitudeY: parseFloat(coordinateMatchResults[2])
+            };
             
-            const baseWeight = INTERACTION_WEIGHTS[interaction.type] || 0.5;
-            const recencyWeight = (EVENT_LIMIT - index) / EVENT_LIMIT; // Lo más reciente vale más
-            const finalWeight = baseWeight * recencyWeight;
+            const baseTypeWeightMagnitude = INTERACTION_TYPE_WEIGHTS_MAP[interaction.type] || 0.5;
+            const recencyDecayWeightMagnitude = (RECENT_EVENTS_LIMIT_MAGNITUDE - eventIndex) / RECENT_EVENTS_LIMIT_MAGNITUDE;
+            const combinedFinalWeightMagnitude = baseTypeWeightMagnitude * recencyDecayWeightMagnitude;
 
-            weightedSumX += coords.x * finalWeight;
-            weightedSumY += coords.y * finalWeight;
-            totalWeight += finalWeight;
+            weightedSumLongitudeX += geodeticCoordinates.longitudeX * combinedFinalWeightMagnitude;
+            weightedSumLatitudeY += geodeticCoordinates.latitudeY * combinedFinalWeightMagnitude;
+            totalInteractionWeightMagnitude += combinedFinalWeightMagnitude;
         }
       }
     });
     
-    if (totalWeight === 0) {
-      return new Response(JSON.stringify({ message: "No se pudo calcular el centro (pesos cero)." }), { 
+    if (totalInteractionWeightMagnitude === 0) {
+      return new Response(JSON.stringify({ message: "CALCULO_FALLIDO: La sumatoria de pesos es nula." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
 
-    const newCenterX = weightedSumX / totalWeight;
-    const newCenterY = weightedSumY / totalWeight;
-    const pointString = `(${newCenterX},${newCenterY})`;
+    const recalculatedCenterLongitudeX = weightedSumLongitudeX / totalInteractionWeightMagnitude;
+    const recalculatedCenterLatitudeY = weightedSumLatitudeY / totalInteractionWeightMagnitude;
+    const sovereignPointString = `(${recalculatedCenterLongitudeX},${recalculatedCenterLatitudeY})`;
 
-    // 5. GUARDADO DE PERFIL
-    const { error: upsertError } = await supabaseAdmin
+    // 5. PERSISTENCIA EN LA MATRIZ (METAL SYNC)
+    const { error: databaseUpsertExceptionInformation } = await supabaseSovereignAdmin
       .from('user_resonance_profiles')
       .upsert({
-        user_id: userId,
-        current_center: pointString,
+        user_id: userIdentification,
+        current_center: sovereignPointString,
         last_calculated_at: new Date().toISOString(),
       });
 
-    if (upsertError) throw new Error(`Error updating profile: ${upsertError.message}`);
+    if (databaseUpsertExceptionInformation) throw new Error(`DATABASE_PROFILE_UPSERT_FAIL: ${databaseUpsertExceptionInformation.message}`);
 
-    console.log(`✅ Resonancia actualizada para ${userId}: ${pointString}`);
+    console.info(`✅ [Resonance-Engine][${correlationIdentification}] Resonancia estabilizada para ${userIdentification}: ${sovereignPointString}`);
 
-    return new Response(JSON.stringify({ success: true, newCenter: { x: newCenterX, y: newCenterY } }), { 
+    return new Response(JSON.stringify({
+      success: true,
+      new_center: { longitudeX: recalculatedCenterLongitudeX, latitudeY: recalculatedCenterLatitudeY },
+      trace_identification: correlationIdentification
+    }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });
 
-  } catch (error) {
-    // Relanzamos el error para que el Guard (Sentry) lo capture y reporte.
-    // Esto asegura que sepamos si el algoritmo de resonancia está fallando en producción.
-    throw error;
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido en motor de resonancia";
+    console.error(`🔥 [Resonance-Engine-Fatal][${correlationIdentification}]:`, errorMessage);
+
+    // Relanzamos para que el Guard ejecute el protocolo de pánico (Sentry)
+    throw exceptionMessageInformation;
   }
 };
 
-// --- PUNTO DE ENTRADA PROTEGIDO ---
-serve(guard(handler));
+// --- PUNTO DE ENTRADA SOBERANO ---
+Deno.serve(guard(calculateUserResonanceOrchestrator));

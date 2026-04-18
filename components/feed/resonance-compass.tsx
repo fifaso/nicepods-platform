@@ -1,9 +1,13 @@
 /**
  * ARCHIVO: components/feed/resonance-compass.tsx
- * VERSIÓN: 8.0 (NicePod Resonance Compass - Sovereign Thermal Shield Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * MISIÓN: Visualizar el universo semántico mediante una simulación de fuerzas.
- * NIVEL DE INTEGRIDAD: 100% (Soberano)
+ * VERSIÓN: 9.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * Misión: Visualizar el universo semántica mediante una simulación de fuerzas multihilo.
+ * [REFORMA V9.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -49,14 +53,13 @@ const PodcastResonanceBubble = memo(({
 }) => {
   const bubbleRadiusPixels = 48;
 
-  // --- REGISTRO DE REFERENCIA SOBERANA ---
   const handleRegistrationAction = useCallback((element: HTMLDivElement | null) => {
     if (element) {
-      elementsMapReference.current.set(associatedPodcast.id, element);
+      elementsMapReference.current.set(associatedPodcast.identification, element);
     } else {
-      elementsMapReference.current.delete(associatedPodcast.id);
+      elementsMapReference.current.delete(associatedPodcast.identification);
     }
-  }, [associatedPodcast.id, elementsMapReference]);
+  }, [associatedPodcast.identification, elementsMapReference]);
 
   return (
     <div
@@ -81,10 +84,10 @@ const PodcastResonanceBubble = memo(({
           className="relative rounded-full overflow-hidden shadow-2xl border-2 border-transparent group-hover:border-primary transition-all bg-zinc-900"
           style={{ width: `${bubbleRadiusPixels * 2}px`, height: `${bubbleRadiusPixels * 2}px` }}
         >
-          {associatedPodcast.cover_image_url ? (
+          {associatedPodcast.coverImageUniformResourceLocator ? (
             <Image 
-              src={associatedPodcast.cover_image_url} 
-              alt={associatedPodcast.title} 
+              src={associatedPodcast.coverImageUniformResourceLocator}
+              alt={associatedPodcast.titleTextContent}
               fill 
               sizes="96px"
               className="object-cover"
@@ -96,7 +99,7 @@ const PodcastResonanceBubble = memo(({
           )}
         </div>
         <p className="text-[10px] font-black uppercase tracking-widest text-center text-white/60 group-hover:text-white truncate w-32 transition-colors italic">
-          {associatedPodcast.title}
+          {associatedPodcast.titleTextContent}
         </p>
       </motion.div>
     </div>
@@ -116,14 +119,10 @@ export function ResonanceCompass({
   const [isPhysicsEngineLoading, setIsPhysicsEngineLoading] = useState<boolean>(true);
   const [selectedPodcastIntelligence, setSelectedPodcastIntelligence] = useState<PodcastWithProfile | null>(null);
   
-  // --- II. REFERENCIAS TÁCTICAS (NOMINAL INTEGRITY) ---
+  // --- II. REFERENCIAS TÁCTICAS ---
   const physicsWorkerReference = useRef<Worker | null>(null);
   const bubbleElementsMapReference = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  /**
-   * handleResizeAction:
-   * Misión: Notificar al motor de físicas sobre el cambio de dimensiones.
-   */
   const handleResizeAction = useCallback(({ width, height }: { width?: number; height?: number }) => {
     if (physicsWorkerReference.current && width && height) {
       const exclusionZoneRadius = Math.min(width, height) * 0.15;
@@ -140,10 +139,6 @@ export function ResonanceCompass({
     onResize: handleResizeAction
   });
 
-  /**
-   * handleWorkerMessageAction:
-   * Misión: Procesar el búfer de transferencia (Float32Array) y actualizar el DOM directamente.
-   */
   const handleWorkerMessageAction = useCallback((messageEvent: MessageEvent) => {
     const { type, positionsBuffer } = messageEvent.data as { type: string, positionsBuffer: Float32Array };
 
@@ -173,25 +168,20 @@ export function ResonanceCompass({
     }
   }, []);
 
-  /**
-   * handleVisibilityChangeAction:
-   * [THERMIC V8.0]: Consolidación del Protocolo de Aislamiento Térmico de Fondo.
-   */
   const handleVisibilityChangeAction = useCallback(() => {
     if (!physicsWorkerReference.current) return;
 
     if (document.hidden) {
-      nicepodLog("💤 [ResonanceCompass] Entrando en modo de hibernación térmica (Pestaña Oculta).");
+      nicepodLog("💤 [ResonanceCompass] Entrando en modo de hibernación térmica.");
       physicsWorkerReference.current.postMessage({ action: "PAUSE_SIMULATION" });
     } else {
-      nicepodLog("⚡ [ResonanceCompass] Restaurando simulación desde hibernación (Pestaña Visible).");
+      nicepodLog("⚡ [ResonanceCompass] Restaurando simulación.");
       physicsWorkerReference.current.postMessage({ action: "RESUME_SIMULATION" });
     }
   }, []);
 
   /**
    * EFECTO: MultithreadedPhysicsOrchestrator
-   * Misión: Inicializar el bus de datos multihilo y gestionar el ciclo de vida del Worker.
    */
   useEffect(() => {
     const hasDimensions = (width ?? 0) > 0 && (height ?? 0) > 0;
@@ -208,21 +198,18 @@ export function ResonanceCompass({
     const centerYCoordinate = (height ?? 0) / 2;
     const exclusionZoneRadius = Math.min((width ?? 0), (height ?? 0)) * 0.15;
 
-    // 1. Inicialización del Trabajador (Protocolo V2.0)
     const workerInstance = new Worker(
       new URL('@/lib/workers/resonance-physics.worker.ts', import.meta.url)
     );
     physicsWorkerReference.current = workerInstance;
     workerInstance.onmessage = handleWorkerMessageAction;
 
-    // 2. Preparación del Payload de Ignición
     const initialNodesCollection = podcastCollection.map((podcastItem) => ({
-      identification: podcastItem.id,
+      identification: podcastItem.identification,
       x: centerXCoordinate + (Math.random() - 0.5) * 100,
       y: centerYCoordinate + (Math.random() - 0.5) * 100
     }));
 
-    // 3. Despacho al Hilo Secundario
     workerInstance.postMessage({
       action: "START_SIMULATION",
       nodesCollection: initialNodesCollection,
@@ -231,14 +218,10 @@ export function ResonanceCompass({
       exclusionZoneRadius
     });
 
-    // 4. Centinela de Aislamiento Térmico Unificado
     document.addEventListener("visibilitychange", handleVisibilityChangeAction);
 
-    /**
-     * LIMPIEZA TÉCNICA (THE FINAL SEAL)
-     */
     return () => {
-      nicepodLog("🧨 [ResonanceCompass] Aniquilando proceso de físicas multihilo y liberando bus de datos.");
+      nicepodLog("🧨 [ResonanceCompass] Aniquilando proceso de físicas multihilo.");
       document.removeEventListener("visibilitychange", handleVisibilityChangeAction);
       workerInstance.terminate();
       physicsWorkerReference.current = null;
@@ -289,7 +272,7 @@ export function ResonanceCompass({
 
           {podcastCollection.map((podcastItem) => (
             <PodcastResonanceBubble 
-              key={podcastItem.id} 
+              key={podcastItem.identification}
               associatedPodcast={podcastItem}
               onPodcastSelectionAction={setSelectedPodcastIntelligence}
               elementsMapReference={bubbleElementsMapReference}

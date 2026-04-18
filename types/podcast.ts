@@ -1,11 +1,13 @@
 /**
- * ARCHIVO: types/podcast.ts
- * VERSIÓN: 5.1 (Madrid Resonance)
- * PROTOCOLO: Nominal Sovereignty
- * MISIÓN: Sincronización de Soberanía de la Entidad Podcast.
- * Purificación del Crystal mediante la erradicación de fugas snake_case,
- * eliminación de tipos 'any' y alineación con el Dogma Técnico ZAP.
- * NIVEL DE INTEGRIDAD: 100%
+ * ARCHIVE: types/podcast.ts
+ * VERSION: 16.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ * 
+ * MISSION: Sincronización de Soberanía de la Entidad Podcast.
+ * [REFORMA V16.0]: Restauración de alias de compatibilidad (@deprecated) para
+ * mantener el Build Shield (BSS) mientras se completa la transición axial.
+ *
+ * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
  */
 
 import { Database, Json } from './database.types';
@@ -17,6 +19,7 @@ export type PodcastRow = Tables<'micro_pods'>;
 export type ProfileRow = Tables<'profiles'>;
 export type PodcastStatus = Enums<'podcast_status'>;
 export type AssemblyStatus = Enums<'assembly_status'>;
+export type ProcessingStatus = Enums<'processing_status'>;
 
 export interface GeoLocation {
   type: 'Point';
@@ -45,7 +48,6 @@ export interface ResearchSource {
 
 /**
  * INTERFAZ: LocalRecommendation
- * Nodos de interés detectados por el motor situacional.
  */
 export interface LocalRecommendation {
   name: string;
@@ -59,7 +61,6 @@ export interface LocalRecommendation {
 
 /**
  * INTERFAZ: DiscoveryContextPayload
- * Dossier de inteligencia táctica generado por el radar espacial.
  */
 export interface DiscoveryContextPayload {
   narrativeHookText: string;
@@ -105,85 +106,129 @@ export interface CreationMetadataPayload {
  * TIPO MAESTRO: PodcastWithProfile
  * Misión: Representación soberana del activo Podcast en el Crystal.
  */
-export type PodcastWithProfile = Omit<PodcastRow,
-  'id' | 'user_id' | 'parent_id' | 'creation_data' | 'sources' | 'script_text' |
-  'ai_tags' | 'user_tags' | 'geo_location' | 'place_name' | 'created_at' |
-  'audio_ready' | 'image_ready' | 'embedding_ready' |
-  'total_audio_segments' | 'current_audio_segments' | 'audio_assembly_status'
-> & {
+export interface PodcastWithProfile {
   // --- IDENTIDAD SOBERANA (ZAP) ---
   identification: number;
   authorUserIdentification: string;
   parentPodcastIdentification: number | null;
+  rootPodcastIdentification: number | null;
   creationTimestamp: string;
+  updateTimestamp: string;
+  publicationTimestamp: string | null;
+
+  // --- METADATA Y CONTENIDO (ZAP) ---
+  titleTextContent: string;
+  descriptionTextContent: string | null;
+  contentCategory: string | null;
+  publicationStatus: PodcastStatus;
+  intelligenceProcessingStatus: ProcessingStatus;
+
+  // --- ACTIVOS MULTIMEDIA (ZAP) ---
+  audioUniformResourceLocator: string | null;
+  coverImageUniformResourceLocator: string | null;
+  playbackDurationSecondsTotal: number | null;
 
   // --- ESTADO DE INTEGRIDAD ---
   isAudioReady: boolean;
   isImageReady: boolean;
   isEmbeddingReady: boolean;
+  isFeaturedContentStatus: boolean | null;
   audioAssemblyStatus: AssemblyStatus | null;
   totalAudioSegmentsCount: number | null;
   currentAudioSegmentsCount: number | null;
+
+  // --- ANALÍTICA Y RENDIMIENTO ---
+  playCountTotal: number;
+  likeCountTotal: number;
 
   // --- DOSSIERS DE INTELIGENCIA (CRISTAL) ---
   creationMetadataDossier: CreationMetadataPayload | null;
   intelligenceSourcesCollection: ResearchSource[] | null;
   podcastScriptDossier: PodcastScript | null;
   artificialIntelligenceTagsCollection: string[] | null;
-  userTagsCollection: string[] | null;
+  userDefinedTagsCollection: string[] | null;
+  artificialIntelligenceSummaryContent: string | null;
+  narrativeLensPerspective: string | null;
+  artificialIntelligenceAgentVersion: string | null;
 
   // --- EXTENSIONES GEODÉSICAS ---
   placeNameReference: string | null;
   geographicLocationPoint: GeoLocation | null;
+  quoteContextReference: string | null;
+  quoteTimestampMagnitude: number | null;
 
-  // --- COMPATIBILIDAD AXIAL (LEGACY FALLBACKS) ---
-  /** @deprecated Utilizar 'identification' */
-  id: number;
-  /** @deprecated Utilizar 'authorUserIdentification' */
-  user_id: string;
-  /** @deprecated Utilizar 'parentPodcastIdentification' */
-  parent_id: number | null;
-  /** @deprecated Utilizar 'creationTimestamp' */
-  created_at: string;
-  /** @deprecated Utilizar 'creationMetadataDossier' */
-  creation_data: CreationMetadataPayload | null;
-  /** @deprecated Utilizar 'intelligenceSourcesCollection' */
-  sources: ResearchSource[] | null;
-  /** @deprecated Utilizar 'podcastScriptDossier' */
-  script_text: PodcastScript | null;
-  /** @deprecated Utilizar 'artificialIntelligenceTagsCollection' */
-  ai_tags: string[] | null;
-  /** @deprecated Utilizar 'geographicLocationPoint' */
-  geo_location: GeoLocation | null;
-  /** @deprecated Utilizar 'isAudioReady' */
-  audio_ready: boolean;
-  /** @deprecated Utilizar 'isImageReady' */
-  image_ready: boolean;
-  /** @deprecated Utilizar 'userTagsCollection' */
-  user_tags: string[] | null;
-  /** @deprecated Utilizar 'placeNameReference' */
-  place_name: string | null;
+  // --- NOTAS ADMINISTRATIVAS ---
+  administrativeNotesContent: string | null;
+  isReviewedByUserStatus: boolean | null;
 
   // --- PERFIL DE AUTORIDAD ---
   profiles: {
-    /** @deprecated Utilizar 'fullName' */
-    full_name: string | null;
     fullName: string | null;
-    /** @deprecated Utilizar 'avatarUniformResourceLocator' */
-    avatar_url: string | null;
     avatarUniformResourceLocator: string | null;
     username: string;
-    /** @deprecated Utilizar 'reputationScoreValue' */
-    reputation_score: number | null;
     reputationScoreValue: number | null;
-    /** @deprecated Utilizar 'isVerifiedAccountStatus' */
-    is_verified: boolean | null;
     isVerifiedAccountStatus: boolean | null;
-    /** @deprecated Utilizar 'authorityRole' */
-    role: string | null;
     authorityRole: string | null;
+    // Fallbacks para perfiles SSR
+    full_name?: string | null;
+    avatar_url?: string | null;
+    reputation_score?: number | null;
+    is_verified?: boolean | null;
+    role?: string | null;
   } | null;
-};
+
+  // --- ALIAS DE COMPATIBILIDAD (AXIAL INTEGRITY - @deprecated) ---
+  /** @deprecated Use identification */
+  id: number;
+  /** @deprecated Use authorUserIdentification */
+  user_id: string;
+  /** @deprecated Use parentPodcastIdentification */
+  parent_id: number | null;
+  /** @deprecated Use titleTextContent */
+  title: string;
+  /** @deprecated Use descriptionTextContent */
+  description: string | null;
+  /** @deprecated Use publicationStatus */
+  status: PodcastStatus;
+  /** @deprecated Use intelligenceProcessingStatus */
+  processing_status: ProcessingStatus;
+  /** @deprecated Use audioUniformResourceLocator */
+  audio_url: string | null;
+  /** @deprecated Use coverImageUniformResourceLocator */
+  cover_image_url: string | null;
+  /** @deprecated Use playbackDurationSecondsTotal */
+  duration_seconds: number | null;
+  /** @deprecated Use creationTimestamp */
+  created_at: string;
+  /** @deprecated Use likeCountTotal */
+  like_count: number;
+  /** @deprecated Use playCountTotal */
+  play_count: number;
+  /** @deprecated Use creationMetadataDossier */
+  creation_data: any;
+  /** @deprecated Use intelligenceSourcesCollection */
+  sources: any;
+  /** @deprecated Use podcastScriptDossier */
+  script_text: any;
+  /** @deprecated Use artificialIntelligenceTagsCollection */
+  ai_tags: any;
+  /** @deprecated Use geographicLocationPoint */
+  geo_location: any;
+  /** @deprecated Use isAudioReady */
+  audio_ready: boolean;
+  /** @deprecated Use isImageReady */
+  image_ready: boolean;
+  /** @deprecated Use userDefinedTagsCollection */
+  user_tags: string[] | null;
+  /** @deprecated Use placeNameReference */
+  place_name: string | null;
+  /** @deprecated Use isFeaturedContentStatus */
+  is_featured: boolean | null;
+  /** @deprecated Use isReviewedByUserStatus */
+  reviewed_by_user: boolean | null;
+  /** @deprecated Use creationMetadataDossier?.creationMode */
+  creation_mode: any;
+}
 
 export type PodcastWithGenealogy = PodcastWithProfile & {
   repliesCollection?: PodcastWithProfile[];

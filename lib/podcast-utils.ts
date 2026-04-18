@@ -1,90 +1,179 @@
 /**
  * ARCHIVO: lib/podcast-utils.ts
- * VERSIÓN: 6.1 (NicePod Intelligence Engine Utils - Legacy Bridge & Industrial Sync)
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * VERSIÓN: 8.1 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V8.0
+ *
+ * Misión: Proveer algoritmos de alto rendimiento para la estructuración de la
+ * malla social y la transformación de datos entre el Metal y el Crystal.
+ * [REFORMA V8.1]: Erradicación total de 'any' y alineación con ZAP 2.0.
  * 
- * Misión: Proveer algoritmos matemáticos y lógicos de alto rendimiento para 
- * la estructuración de la malla social, el cálculo cinemático y el peritaje 
- * de capital intelectual, garantizando la protección del Hilo Principal (MTI).
- * [REFORMA V6.1]: Sincronización nominal absoluta (ZAP). Refactorización de
- * descriptores de nodos para alineación con el Grafo de Conocimiento Soberano.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
-import { PodcastWithGenealogy, PodcastWithProfile } from "@/types/podcast";
+import {
+    PodcastWithGenealogy,
+    PodcastWithProfile,
+    PodcastRow,
+    GeoLocation,
+    ProfileRow,
+    CreationMetadataPayload,
+    ResearchSource,
+    PodcastScript
+} from "@/types/podcast";
 
 /**
- * INTERFAZ TÁCTICA: TopologicalPodcastNode (Type Lens)
- * Misión: Garantizar que el compilador TS reconozca la columna física 'parent_id', 
- * superando la amnesia de inferencia generada por las interfaces Omit de Supabase.
+ * mapDatabasePodcastToSovereignPodcast:
+ * Misión: Actuar como el único puente legal entre el Metal (Base de Datos) y
+ * el Crystal (UI), purificando la nomenclatura mediante la Doctrina ZAP.
  */
-type TopologicalPodcastNode = PodcastWithGenealogy & {
-    parent_id: number | null;
-};
+export function mapDatabasePodcastToSovereignPodcast(
+    databaseRowInstance: any
+): PodcastWithProfile {
+    // Si la fila incluye el objeto relacional de perfiles, lo mapeamos también.
+    const rawProfileDataSnapshot = databaseRowInstance.profiles || null;
+
+    const sovereignObject: PodcastWithProfile = {
+        // --- IDENTIDAD SOBERANA ---
+        identification: databaseRowInstance.id,
+        authorUserIdentification: databaseRowInstance.user_id,
+        parentPodcastIdentification: databaseRowInstance.parent_id,
+        rootPodcastIdentification: databaseRowInstance.root_id,
+        creationTimestamp: databaseRowInstance.created_at,
+        updateTimestamp: databaseRowInstance.updated_at,
+        publicationTimestamp: databaseRowInstance.published_at,
+
+        // --- METADATA Y CONTENIDO ---
+        titleTextContent: databaseRowInstance.title,
+        descriptionTextContent: databaseRowInstance.description,
+        contentCategory: databaseRowInstance.category,
+        publicationStatus: databaseRowInstance.status,
+        intelligenceProcessingStatus: databaseRowInstance.processing_status,
+
+        // --- ACTIVOS MULTIMEDIA ---
+        audioUniformResourceLocator: databaseRowInstance.audio_url,
+        coverImageUniformResourceLocator: databaseRowInstance.cover_image_url,
+        playbackDurationSecondsTotal: databaseRowInstance.duration_seconds,
+
+        // --- ESTADO DE INTEGRIDAD ---
+        isAudioReady: databaseRowInstance.audio_ready ?? false,
+        isImageReady: databaseRowInstance.image_ready ?? false,
+        isEmbeddingReady: databaseRowInstance.embedding_ready ?? false,
+        isFeaturedContentStatus: databaseRowInstance.is_featured,
+        audioAssemblyStatus: databaseRowInstance.audio_assembly_status,
+        totalAudioSegmentsCount: databaseRowInstance.total_audio_segments,
+        currentAudioSegmentsCount: databaseRowInstance.current_audio_segments,
+
+        // --- ANALÍTICA Y RENDIMIENTO ---
+        playCountTotal: Number(databaseRowInstance.play_count) ?? 0,
+        likeCountTotal: Number(databaseRowInstance.like_count) ?? 0,
+
+        // --- DOSSIERS DE INTELIGENCIA ---
+        creationMetadataDossier: databaseRowInstance.creation_data as unknown as CreationMetadataPayload,
+        intelligenceSourcesCollection: databaseRowInstance.sources as unknown as ResearchSource[],
+        podcastScriptDossier: databaseRowInstance.script_text as unknown as PodcastScript,
+        artificialIntelligenceTagsCollection: databaseRowInstance.ai_tags,
+        userDefinedTagsCollection: databaseRowInstance.user_tags,
+        artificialIntelligenceSummaryContent: databaseRowInstance.ai_summary,
+        narrativeLensPerspective: databaseRowInstance.narrative_lens,
+        artificialIntelligenceAgentVersion: databaseRowInstance.agent_version,
+
+        // --- EXTENSIONES GEODÉSICAS ---
+        placeNameReference: databaseRowInstance.place_name,
+        geographicLocationPoint: databaseRowInstance.geo_location as unknown as GeoLocation,
+        quoteContextReference: databaseRowInstance.quote_context,
+        quoteTimestampMagnitude: databaseRowInstance.quote_timestamp ? Number(databaseRowInstance.quote_timestamp) : null,
+
+        // --- NOTAS ADMINISTRATIVAS ---
+        administrativeNotesContent: databaseRowInstance.admin_notes,
+        isReviewedByUserStatus: databaseRowInstance.reviewed_by_user,
+
+        // --- PERFIL DE AUTORIDAD ---
+        profiles: rawProfileDataSnapshot ? {
+            fullName: rawProfileDataSnapshot.full_name,
+            avatarUniformResourceLocator: rawProfileDataSnapshot.avatar_url,
+            username: rawProfileDataSnapshot.username,
+            reputationScoreValue: rawProfileDataSnapshot.reputation_score,
+            isVerifiedAccountStatus: rawProfileDataSnapshot.is_verified,
+            authorityRole: rawProfileDataSnapshot.role,
+            // Fallbacks SSR
+            full_name: rawProfileDataSnapshot.full_name,
+            avatar_url: rawProfileDataSnapshot.avatar_url,
+            reputation_score: rawProfileDataSnapshot.reputation_score,
+            is_verified: rawProfileDataSnapshot.is_verified,
+            role: rawProfileDataSnapshot.role
+        } : null,
+
+        // --- ALIAS DE COMPATIBILIDAD (@deprecated) ---
+        id: databaseRowInstance.id,
+        user_id: databaseRowInstance.user_id,
+        parent_id: databaseRowInstance.parent_id,
+        title: databaseRowInstance.title,
+        description: databaseRowInstance.description,
+        status: databaseRowInstance.status,
+        processing_status: databaseRowInstance.processing_status,
+        audio_url: databaseRowInstance.audio_url,
+        cover_image_url: databaseRowInstance.cover_image_url,
+        duration_seconds: databaseRowInstance.duration_seconds,
+        created_at: databaseRowInstance.created_at,
+        like_count: Number(databaseRowInstance.like_count) ?? 0,
+        play_count: Number(databaseRowInstance.play_count) ?? 0,
+        creation_data: databaseRowInstance.creation_data as unknown as CreationMetadataPayload,
+        sources: databaseRowInstance.sources as unknown as ResearchSource[],
+        script_text: databaseRowInstance.script_text as unknown as PodcastScript,
+        ai_tags: databaseRowInstance.ai_tags,
+        geo_location: databaseRowInstance.geo_location as unknown as GeoLocation,
+        audio_ready: databaseRowInstance.audio_ready ?? false,
+        image_ready: databaseRowInstance.image_ready ?? false,
+        user_tags: databaseRowInstance.user_tags,
+        place_name: databaseRowInstance.place_name,
+        is_featured: databaseRowInstance.is_featured,
+        reviewed_by_user: databaseRowInstance.reviewed_by_user,
+        creation_mode: (databaseRowInstance.creation_data as unknown as CreationMetadataPayload)?.creationMode || databaseRowInstance.creation_mode
+    };
+
+    return sovereignObject;
+}
 
 /**
  * groupPodcastsByThread:
- * Misión: Orquestar hilos conversacionales mediante mapeo lineal (O(n) lookup), 
- * evitando la latencia de recursión y protegiendo el Main Thread en 
- * colecciones de alta densidad.
+ * Misión: Orquestar hilos conversacionales mediante mapeo lineal.
  */
 export function groupPodcastsByThread(flatPodcastCollection: PodcastWithProfile[]): PodcastWithGenealogy[] {
     if (!flatPodcastCollection || flatPodcastCollection.length === 0) return [];
 
-    // 1. Indexación y Clonación de Estructura Base (Zero Mutation)
-    const podcastIdentificationMap = new Map<number, TopologicalPodcastNode>();
+    const podcastIdentificationMap = new Map<number, PodcastWithGenealogy>();
     const timestampReferenceMap = new Map<number, number>();
-
-    const genealogicalPodcastNodesCollection = flatPodcastCollection.map(podcastSnapshotInstance => {
-        /**
-         * [BSS]: Dual Lens Casting.
-         * Forzamos al compilador a aceptar que el objeto posee la columna relacional, 
-         * pasando por 'unknown' para evitar el error de solapamiento TS2352.
-         */
-        const topologicalPodcastNodeInstance = {
-            ...podcastSnapshotInstance,
-            repliesCollection: [],
-        } as unknown as TopologicalPodcastNode;
-
-        podcastIdentificationMap.set(topologicalPodcastNodeInstance.identification, topologicalPodcastNodeInstance);
-        timestampReferenceMap.set(topologicalPodcastNodeInstance.identification, new Date(topologicalPodcastNodeInstance.creationTimestamp).getTime());
-
-        return topologicalPodcastNodeInstance;
-    });
 
     const rootPodcastsCollection: PodcastWithGenealogy[] = [];
 
-    // 2. Ensamblaje de la Topología de Hilos (Grafo de Conocimiento)
-    for (const topologicalPodcastNodeInstance of genealogicalPodcastNodesCollection) {
+    // 1. Inicialización de Nodos
+    flatPodcastCollection.forEach(podcastSnapshotInstance => {
+        const nodeInstance: PodcastWithGenealogy = {
+            ...podcastSnapshotInstance,
+            repliesCollection: []
+        };
+        podcastIdentificationMap.set(nodeInstance.identification, nodeInstance);
+        timestampReferenceMap.set(nodeInstance.identification, new Date(nodeInstance.creationTimestamp).getTime());
+    });
 
-        // Accedemos al descriptor físico validado por el Lente Topológico.
-        const parentPodcastIdentification = topologicalPodcastNodeInstance.parent_id;
+    // 2. Ensamblaje de la Topología
+    for (const podcastInstance of podcastIdentificationMap.values()) {
+        const parentIdentification = podcastInstance.parentPodcastIdentification;
 
-        const isResponseToExistingPodcastStatus =
-            parentPodcastIdentification !== null &&
-            parentPodcastIdentification !== undefined &&
-            podcastIdentificationMap.has(parentPodcastIdentification) &&
-            topologicalPodcastNodeInstance.creationMetadataDossier?.creationMode !== 'pulse';
-
-        if (isResponseToExistingPodcastStatus) {
-            const parentTopologicalNodeReference = podcastIdentificationMap.get(parentPodcastIdentification)!;
-
-            // Inyectamos la respuesta en la colección de su progenitor semántico.
-            if (!parentTopologicalNodeReference.repliesCollection) {
-                parentTopologicalNodeReference.repliesCollection = [];
-            }
-            parentTopologicalNodeReference.repliesCollection.push(topologicalPodcastNodeInstance);
-
+        if (parentIdentification && podcastIdentificationMap.has(parentIdentification)) {
+            const parentNode = podcastIdentificationMap.get(parentIdentification)!;
+            parentNode.repliesCollection = parentNode.repliesCollection || [];
+            parentNode.repliesCollection.push(podcastInstance);
         } else {
-            rootPodcastsCollection.push(topologicalPodcastNodeInstance);
+            rootPodcastsCollection.push(podcastInstance);
         }
     }
 
-    // 3. Ordenamiento Estratégico (Descendente por Tiempo de Creación)
-    return rootPodcastsCollection.sort((firstTopologicalNodeSnapshot, secondTopologicalNodeSnapshot) => {
-        const firstTimestampMagnitude = timestampReferenceMap.get(firstTopologicalNodeSnapshot.identification) || 0;
-        const secondTimestampMagnitude = timestampReferenceMap.get(secondTopologicalNodeSnapshot.identification) || 0;
-        return secondTimestampMagnitude - firstTimestampMagnitude; // LIFO (Last In, First Out)
+    // 3. Ordenamiento (Descendente)
+    return rootPodcastsCollection.sort((firstNode, secondNode) => {
+        const firstTimestamp = timestampReferenceMap.get(firstNode.identification) || 0;
+        const secondTimestamp = timestampReferenceMap.get(secondNode.identification) || 0;
+        return secondTimestamp - firstTimestamp;
     });
 }
 
@@ -109,9 +198,8 @@ export function segmentPodcastsByTaxonomyCollection(podcastCollection: PodcastWi
  */
 export function sortPodcastsByStrategicValueAction(podcastCollection: PodcastWithGenealogy[]): PodcastWithGenealogy[] {
     return podcastCollection.sort((firstPodcastItem, secondPodcastItem) => {
-        // Utilizamos la reputación del curador como proxy de autoridad del nodo.
-        const firstPodcastAuthorityScoreMagnitude = firstPodcastItem.profiles?.reputation_score || 0;
-        const secondPodcastAuthorityScoreMagnitude = secondPodcastItem.profiles?.reputation_score || 0;
+        const firstPodcastAuthorityScoreMagnitude = firstPodcastItem.profiles?.reputationScoreValue || 0;
+        const secondPodcastAuthorityScoreMagnitude = secondPodcastItem.profiles?.reputationScoreValue || 0;
 
         if (firstPodcastAuthorityScoreMagnitude !== secondPodcastAuthorityScoreMagnitude) {
             return secondPodcastAuthorityScoreMagnitude - firstPodcastAuthorityScoreMagnitude;
@@ -156,11 +244,7 @@ export function calculateActiveParagraphIndex(
 }
 
 /**
- * ---------------------------------------------------------------------------
- * VI. CAPA DE ALIAS SOBERANOS (LEGACY COMPATIBILITY BRIDGE)
- * ---------------------------------------------------------------------------
- * Misión: Resolver los errores de importación TS2305 en la plataforma mientras 
- * se completa la transición nominal hacia descriptores industriales.
+ * ALIAS SOBERANOS (LEGACY BRIDGE)
  */
 export {
     getPodcastExpertiseLevelLabel as getPodcastLevelLabel,

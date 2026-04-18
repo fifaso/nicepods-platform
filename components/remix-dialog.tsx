@@ -1,5 +1,14 @@
-// components/remix-dialog.tsx
-// VERSIÓN: 1.0 (Micro-Studio for Audio Threads)
+/**
+ * ARCHIVO: components/remix-dialog.tsx
+ * VERSIÓN: 2.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * Misión: Micro-estudio para la generación de hilos de audio (Remixes).
+ * [REFORMA V2.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
+ */
 
 "use client";
 
@@ -11,86 +20,92 @@ import { VoiceInput } from "@/components/ui/voice-input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-interface RemixDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  parentPodcast: {
-    id: number;
-    title: string;
-    author: { full_name: string | null; avatar_url: string | null };
+/**
+ * INTERFAZ: RemixDialogComponentProperties
+ */
+interface RemixDialogComponentProperties {
+  isInterfaceOpenStatus: boolean;
+  onInterfaceOpenChangeAction: (isInterfaceOpenStatus: boolean) => void;
+  parentPodcastSnapshot: {
+    identification: number;
+    titleTextContent: string;
+    authorProfile: { fullName: string | null; avatarUniformResourceLocator: string | null };
   };
-  quoteContext: string; // El texto al que respondemos
-  timestamp: number;    // El minuto exacto
+  quoteContextText: string;
+  playbackTimestampMagnitude: number;
 }
 
-export function RemixDialog({ isOpen, onOpenChange, parentPodcast, quoteContext, timestamp }: RemixDialogProps) {
-  const { user, supabase } = useAuth();
+export function RemixDialog({
+  isInterfaceOpenStatus: isOpen,
+  onInterfaceOpenChangeAction: onOpenChange,
+  parentPodcastSnapshot: parentPodcast,
+  quoteContextText: quoteContext,
+  playbackTimestampMagnitude: timestamp
+}: RemixDialogComponentProperties) {
+  const { authenticatedUser, supabaseSovereignClient: supabase } = useAuth();
   const { toast } = useToast();
   
-  const [reactionText, setReactionText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [reactionContentText, setReactionContentText] = useState("");
+  const [isSubmissionProcessActive, setIsSubmissionProcessActive] = useState(false);
+  const [isOperationSuccessfulStatus, setIsOperationSuccessfulStatus] = useState(false);
 
-  const formatTimestamp = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatTimestampAction = (secondsMagnitude: number) => {
+    const minutesValue = Math.floor(secondsMagnitude / 60);
+    const secondsValue = Math.floor(secondsMagnitude % 60);
+    return `${minutesValue}:${secondsValue.toString().padStart(2, '0')}`;
   };
 
-  const handleCreateRemix = async () => {
-    if (!user) {
+  const handleCreateRemixAction = async () => {
+    if (!authenticatedUser) {
         toast({ title: "Inicia sesión", description: "Necesitas una cuenta para responder.", variant: "destructive" });
         return;
     }
-    if (!reactionText || reactionText.length < 5) {
+    if (!reactionContentText || reactionContentText.length < 5) {
         toast({ title: "Falta tu voz", description: "Graba una reacción para continuar.", variant: "destructive" });
         return;
     }
 
-    setIsSubmitting(true);
+    setIsSubmissionProcessActive(true);
 
     try {
-        // Payload especial para Modo Remix
-        const payload = {
+        const creationPayload = {
             creation_mode: 'remix',
-            parent_id: parentPodcast.id,
-            quote_context: quoteContext, // El texto original
-            user_reaction: reactionText, // Tu opinión
-            agentName: 'reply-synthesizer-v1', // El "Debater"
+            parent_id: parentPodcast.identification,
+            quote_context: quoteContext,
+            user_reaction: reactionContentText,
+            agentName: 'reply-synthesizer-v1',
             inputs: {
-                generateAudioDirectly: true, // Queremos audio sí o sí
-                voiceGender: "Masculino", // Default o preferencia de usuario
-                voiceStyle: "Energético"  // Tono de debate
+                generateAudioDirectly: true,
+                voiceGender: "Masculino",
+                voiceStyle: "Energético"
             }
         };
 
-        const { data, error } = await supabase.functions.invoke('queue-podcast-job', {
-            body: payload
+        const { data: edgeFunctionResponse, error: communicationException } = await supabase.functions.invoke('queue-podcast-job', {
+            body: creationPayload
         });
 
-        if (error) throw new Error(error.message);
-        if (!data.success) throw new Error(data.message);
+        if (communicationException) throw communicationException;
+        if (!edgeFunctionResponse.success) throw new Error(edgeFunctionResponse.message);
 
-        setIsSuccess(true);
+        setIsOperationSuccessfulStatus(true);
         toast({ 
             title: "¡Respuesta en Camino!", 
             description: "Tu remix se está generando. Te avisaremos cuando esté listo." 
         });
         
-        // Cerrar después de un momento
         setTimeout(() => {
             onOpenChange(false);
-            setIsSuccess(false);
-            setReactionText("");
+            setIsOperationSuccessfulStatus(false);
+            setReactionContentText("");
         }, 2000);
 
-    } catch (error: any) {
-        console.error("Remix Error:", error);
-        toast({ title: "Error", description: error.message || "No se pudo enviar la respuesta.", variant: "destructive" });
+    } catch (hardwareException: any) {
+        console.error("🔥 [RemixDialog] Operation failed:", hardwareException);
+        toast({ title: "Error", description: hardwareException.message || "No se pudo enviar la respuesta.", variant: "destructive" });
     } finally {
-        setIsSubmitting(false);
+        setIsSubmissionProcessActive(false);
     }
   };
 
@@ -101,21 +116,20 @@ export function RemixDialog({ isOpen, onOpenChange, parentPodcast, quoteContext,
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <CornerDownRight className="h-5 w-5 text-purple-400" />
-            Responder a {parentPodcast.author.full_name?.split(' ')[0]}
+            Responder a {parentPodcast.authorProfile.fullName?.split(' ')[0]}
           </DialogTitle>
           <DialogDescription className="text-slate-400">
             Crea un micro-podcast de respuesta a esta idea.
           </DialogDescription>
         </DialogHeader>
 
-        {!isSuccess ? (
+        {!isOperationSuccessfulStatus ? (
             <div className="space-y-6 py-2">
-                {/* 1. CONTEXTO (LA CITA) */}
                 <div className="relative pl-4 border-l-4 border-purple-500/50 bg-purple-500/5 p-3 rounded-r-lg">
                     <Quote className="absolute top-2 right-2 h-4 w-4 text-purple-500/20" />
                     <div className="flex items-center gap-2 mb-1 text-xs text-purple-300 font-mono">
                         <span className="bg-purple-500/20 px-1.5 py-0.5 rounded">
-                            {formatTimestamp(timestamp)}
+                            {formatTimestampAction(timestamp)}
                         </span>
                         <span>Contexto Original</span>
                     </div>
@@ -126,19 +140,18 @@ export function RemixDialog({ isOpen, onOpenChange, parentPodcast, quoteContext,
                     </ScrollArea>
                 </div>
 
-                {/* 2. TU REACCIÓN (INPUT) */}
                 <div className="space-y-3">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                         Tu Reacción (Máx 10s)
                     </label>
                     
-                    {reactionText ? (
+                    {reactionContentText ? (
                         <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 animate-in fade-in">
-                            <p className="text-sm text-white">"{reactionText}"</p>
+                            <p className="text-sm text-white">"{reactionContentText}"</p>
                             <Button 
                                 variant="link" 
                                 size="sm" 
-                                onClick={() => setReactionText("")} 
+                                onClick={() => setReactionContentText("")}
                                 className="h-auto p-0 mt-2 text-xs text-red-400"
                             >
                                 Borrar y grabar de nuevo
@@ -146,14 +159,13 @@ export function RemixDialog({ isOpen, onOpenChange, parentPodcast, quoteContext,
                         </div>
                     ) : (
                         <VoiceInput 
-                            onTextGeneratedAction={setReactionText}
+                            onTextGeneratedAction={setReactionContentText}
                             className="w-full"
                         />
                     )}
                 </div>
             </div>
         ) : (
-            /* ESTADO DE ÉXITO */
             <div className="py-10 flex flex-col items-center justify-center text-center animate-in zoom-in-95">
                 <div className="h-16 w-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
                     <Sparkles className="h-8 w-8 text-green-400" />
@@ -165,17 +177,17 @@ export function RemixDialog({ isOpen, onOpenChange, parentPodcast, quoteContext,
             </div>
         )}
 
-        {!isSuccess && (
+        {!isOperationSuccessfulStatus && (
             <DialogFooter>
-                <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+                <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isSubmissionProcessActive}>
                     Cancelar
                 </Button>
                 <Button 
-                    onClick={handleCreateRemix} 
-                    disabled={!reactionText || isSubmitting}
+                    onClick={handleCreateRemixAction}
+                    disabled={!reactionContentText || isSubmissionProcessActive}
                     className="bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                    {isSubmitting ? (
+                    {isSubmissionProcessActive ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creando...</>
                     ) : (
                         "Publicar Respuesta"
