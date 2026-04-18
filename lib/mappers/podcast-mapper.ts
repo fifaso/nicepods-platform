@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: lib/mappers/podcast-mapper.ts
- * VERSIÓN: 8.1 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 8.2 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: METAL-TO-CRYSTAL DATA PURIFICATION
  * MISIÓN: Transmutación de registros crudos (Supabase) hacia entidades soberanas (Crystal).
- * [CORRECCIÓN V8.1]: Inclusión de campos 'category' y 'description' para cumplimiento de BSS.
+ * [CORRECCIÓN V8.2]: Alineación axial con userDefinedTagsCollection para cumplimiento BSS.
  * NIVEL DE INTEGRIDAD: 100% (Scribe Documented)
  */
 
@@ -15,19 +15,13 @@ import { nicepodLog } from "@/lib/utils";
  *
  * @description
  * Esta función constituye el puente de soberanía entre el Metal (Base de Datos)
- * y el Crystal (Interfaz de Usuario). Su complejidad radica en la reconciliación
- * de la nomenclatura técnica industrial (ZAP) con el esquema físico de Supabase.
+ * y el Crystal (Interfaz de Usuario).
  *
  * @param rawDatabaseRecord Registro crudo proveniente de la tabla 'micro_pods'.
  * @returns Entidad Podcast purificada lista para el consumo en la plataforma.
- *
- * @complexity
- * 1. Nominal Mapping: Transforma campos snake_case a descriptores camaleónicos (camelCase).
- * 2. Data Integrity: Verifica la presencia de campos críticos (id, user_id).
- * 3. Fallback Management: Implementa recuperaciones seguras para evitar excepciones en el Crystal.
  */
 export function transformPodcastMetalToCrystal(
-  rawDatabaseRecord: any // Usamos any temporalmente para el casting desde la respuesta de Supabase select(*)
+  rawDatabaseRecord: any
 ): PodcastWithProfile {
 
   // 1. Auditoría de Identidad (Traceability)
@@ -39,22 +33,16 @@ export function transformPodcastMetalToCrystal(
     );
   }
 
-  if (!rawDatabaseRecord.user_id) {
-    nicepodLog(
-      "⚠️ [Mapper-Warning][Podcast]: Detección de registro huérfano (Missing authorUserIdentification).",
-      { recordIdentification: rawDatabaseRecord.id },
-      'warn'
-    );
-  }
-
   // 2. Transmutación Soberana (ZAP Alignment)
-  // El casting final garantiza que el objeto cumpla con la interfaz PodcastWithProfile.
   const sovereignPodcastInstance: PodcastWithProfile = {
     // --- IDENTIDAD SOBERANA (ZAP) ---
     identification: rawDatabaseRecord.id,
     authorUserIdentification: rawDatabaseRecord.user_id,
     parentPodcastIdentification: rawDatabaseRecord.parent_id,
+    rootPodcastIdentification: rawDatabaseRecord.root_id,
     creationTimestamp: rawDatabaseRecord.created_at,
+    updateTimestamp: rawDatabaseRecord.updated_at,
+    publicationTimestamp: rawDatabaseRecord.published_at,
 
     // --- ESTADO DE INTEGRIDAD ---
     isAudioReady: rawDatabaseRecord.audio_ready ?? false,
@@ -63,44 +51,40 @@ export function transformPodcastMetalToCrystal(
     audioAssemblyStatus: rawDatabaseRecord.audio_assembly_status,
     totalAudioSegmentsCount: rawDatabaseRecord.total_audio_segments,
     currentAudioSegmentsCount: rawDatabaseRecord.current_audio_segments,
+    isFeaturedContentStatus: rawDatabaseRecord.is_featured,
 
     // --- DOSSIERS DE INTELIGENCIA (CRISTAL) ---
     creationMetadataDossier: rawDatabaseRecord.creation_data,
     intelligenceSourcesCollection: rawDatabaseRecord.sources,
     podcastScriptDossier: rawDatabaseRecord.script_text,
     artificialIntelligenceTagsCollection: rawDatabaseRecord.ai_tags,
-    userTagsCollection: rawDatabaseRecord.user_tags,
+    userDefinedTagsCollection: rawDatabaseRecord.user_tags,
+    artificialIntelligenceSummaryContent: rawDatabaseRecord.ai_summary,
+    narrativeLensPerspective: rawDatabaseRecord.narrative_lens,
+    artificialIntelligenceAgentVersion: rawDatabaseRecord.agent_version,
 
     // --- EXTENSIONES GEODÉSICAS ---
     placeNameReference: rawDatabaseRecord.place_name,
     geographicLocationPoint: rawDatabaseRecord.geo_location,
+    quoteContextReference: rawDatabaseRecord.quote_context,
+    quoteTimestampMagnitude: rawDatabaseRecord.quote_timestamp,
 
     // --- PERFIL DE AUTORIDAD ---
     profiles: rawDatabaseRecord.profiles || null,
 
-    // --- CAMPOS DE LEGADO (PROPIEDADES BASE DE LA TABLA) ---
-    title: rawDatabaseRecord.title || "Crónica Sin Título",
-    description: rawDatabaseRecord.description,
-    category: rawDatabaseRecord.category,
-    audio_url: rawDatabaseRecord.audio_url,
-    cover_image_url: rawDatabaseRecord.cover_image_url,
-    duration_seconds: rawDatabaseRecord.duration_seconds,
-    play_count: rawDatabaseRecord.play_count,
-    like_count: rawDatabaseRecord.like_count,
-    updated_at: rawDatabaseRecord.updated_at,
-    status: rawDatabaseRecord.status,
-    processing_status: rawDatabaseRecord.processing_status,
-    agent_version: rawDatabaseRecord.agent_version,
-    ai_summary: rawDatabaseRecord.ai_summary,
-    narrative_lens: rawDatabaseRecord.narrative_lens,
-    reviewed_by_user: rawDatabaseRecord.reviewed_by_user,
-    published_at: rawDatabaseRecord.published_at,
-    admin_notes: rawDatabaseRecord.admin_notes,
-    is_featured: rawDatabaseRecord.is_featured,
-    root_id: rawDatabaseRecord.root_id,
-    quote_context: rawDatabaseRecord.quote_context,
-    quote_timestamp: rawDatabaseRecord.quote_timestamp,
-    creation_mode: rawDatabaseRecord.creation_mode,
+    // --- CAMPOS DE LEGADO Y METADATA ---
+    titleTextContent: rawDatabaseRecord.title || "Crónica Sin Título",
+    descriptionTextContent: rawDatabaseRecord.description,
+    contentCategory: rawDatabaseRecord.category,
+    publicationStatus: rawDatabaseRecord.status,
+    intelligenceProcessingStatus: rawDatabaseRecord.processing_status,
+    audioUniformResourceLocator: rawDatabaseRecord.audio_url,
+    coverImageUniformResourceLocator: rawDatabaseRecord.cover_image_url,
+    playbackDurationSecondsTotal: rawDatabaseRecord.duration_seconds,
+    playCountTotal: rawDatabaseRecord.play_count,
+    likeCountTotal: rawDatabaseRecord.like_count,
+    administrativeNotesContent: rawDatabaseRecord.admin_notes,
+    isReviewedByUserStatus: rawDatabaseRecord.reviewed_by_user,
 
     // --- COMPATIBILIDAD AXIAL (LEGACY FALLBACKS / DEPRECATED) ---
     id: rawDatabaseRecord.id,
@@ -116,6 +100,18 @@ export function transformPodcastMetalToCrystal(
     image_ready: rawDatabaseRecord.image_ready,
     user_tags: rawDatabaseRecord.user_tags,
     place_name: rawDatabaseRecord.place_name,
+    title: rawDatabaseRecord.title || "Crónica Sin Título",
+    description: rawDatabaseRecord.description,
+    status: rawDatabaseRecord.status,
+    processing_status: rawDatabaseRecord.processing_status,
+    audio_url: rawDatabaseRecord.audio_url,
+    cover_image_url: rawDatabaseRecord.cover_image_url,
+    duration_seconds: rawDatabaseRecord.duration_seconds,
+    like_count: rawDatabaseRecord.like_count,
+    play_count: rawDatabaseRecord.play_count,
+    is_featured: rawDatabaseRecord.is_featured,
+    reviewed_by_user: rawDatabaseRecord.reviewed_by_user,
+    creation_mode: rawDatabaseRecord.creation_mode,
   };
 
   return sovereignPodcastInstance;

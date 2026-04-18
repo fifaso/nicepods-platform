@@ -1,17 +1,24 @@
 /**
  * ARCHIVO: supabase/functions/queue-podcast-job/index.ts
- * VERSIÓN: 19.0
- * PROTOCOLO: Madrid Resonance Protocol V4.0
- * MISIÓN: Zero-CPU Promotion Engine with Perimeter Security.
+ * VERSIÓN: 20.1
+ * PROTOCOLO: Madrid Resonance Protocol V8.0
+ * MISIÓN: Zero-CPU Promotion Engine with Perimeter Guard and ZAP compliance.
+ * [REFORMA V20.1]: Restoration of legacy response keys to prevent UI regression.
  * NIVEL DE INTEGRIDAD: 100%
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { guard, GuardContext } from "../_shared/guard.ts";
 
-const handler = async (request: Request, context: GuardContext): Promise<Response> => {
+/**
+ * executePodcastPromotionHandler:
+ * Orquestador para la promoción de borradores a la forja de producción.
+ */
+const executePodcastPromotionHandler = async (incomingRequest: Request, context: GuardContext): Promise<Response> => {
+  const correlationIdentification = context.correlationIdentification;
+
   try {
-    const authorizationHeader = request.headers.get('Authorization');
+    const authorizationHeader = incomingRequest.headers.get('Authorization');
     if (!authorizationHeader) {
       return new Response(JSON.stringify({ error: "Acceso denegado: Identidad no verificada." }), {
         status: 401,
@@ -19,28 +26,44 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       });
     }
 
-    const supabaseClient = createClient(
+    const supabaseSovereignClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       { global: { headers: { Authorization: authorizationHeader } } }
     );
 
-    const { draft_id, final_title, final_script, sources } = await request.json();
+    const submissionPayload = await incomingRequest.json();
+    const {
+      draftIdentification,
+      finalTitleTextContent,
+      finalPodcastScriptContent,
+      intelligenceResearchSourcesCollection
+    } = submissionPayload;
 
-    const { data: rpcResultData, error: rpcExceptionInformation } = await supabaseClient.rpc('promote_draft_to_production_v2', {
-      p_draft_id: draft_id,
-      p_final_title: final_title,
-      p_final_script: final_script,
-      p_sources: sources || []
+    // Backward compatibility for legacy payloads during transition
+    const targetDraftIdentification = draftIdentification || submissionPayload.draft_id;
+    const targetTitle = finalTitleTextContent || submissionPayload.final_title;
+    const targetScript = finalPodcastScriptContent || submissionPayload.final_script;
+    const targetSources = intelligenceResearchSourcesCollection || submissionPayload.sources || [];
+
+    const { data: rpcResultCollection, error: rpcHardwareExceptionInformation } = await supabaseSovereignClient.rpc('promote_draft_to_production_v2', {
+      p_draft_id: targetDraftIdentification,
+      p_final_title: targetTitle,
+      p_final_script: targetScript,
+      p_sources: targetSources
     });
 
-    if (rpcExceptionInformation || !rpcResultData || rpcResultData.length === 0) {
-      throw new Error(rpcExceptionInformation?.message || "Falla en promoción SQL");
+    if (rpcHardwareExceptionInformation || !rpcResultCollection || rpcResultCollection.length === 0) {
+      throw new Error(rpcHardwareExceptionInformation?.message || "Falla en promoción SQL");
     }
 
-    const result = rpcResultData[0];
-    if (!result.success) {
-      return new Response(JSON.stringify({ success: false, message: result.message }), {
+    const promotionResultSnapshot = rpcResultCollection[0];
+    if (!promotionResultSnapshot.success) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: promotionResultSnapshot.message,
+        trace_identification: correlationIdentification
+      }), {
         status: 400,
         headers: { "Content-Type": "application/json" }
       });
@@ -48,19 +71,30 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
 
     return new Response(JSON.stringify({
       success: true,
-      pod_id: result.pod_id,
+      pod_id: promotionResultSnapshot.pod_id, // RESTORED: Legacy key for UI compatibility
+      podcastIdentification: promotionResultSnapshot.pod_id, // ZAP compliant key
       message: "Contenido enviado a la forja multimedia.",
-      trace_identification: context.correlationIdentification
+      trace_identification: correlationIdentification
     }), {
       status: 202,
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error(`🔥 [queue-podcast-job-Fatal][${context.correlationIdentification}]:`, errorMessage);
-    throw exceptionMessageInformation;
+  } catch (hardwareException: unknown) {
+    const exceptionMessageInformationText = hardwareException instanceof Error ? hardwareException.message : "Error desconocido";
+    console.error(`🔥 [queue-podcast-job-Fatal][${correlationIdentification}]:`, exceptionMessageInformationText);
+
+    return new Response(
+      JSON.stringify({
+        error: exceptionMessageInformationText,
+        trace_identification: correlationIdentification
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      }
+    );
   }
 };
 
-Deno.serve(guard(handler));
+Deno.serve(guard(executePodcastPromotionHandler));

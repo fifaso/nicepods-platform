@@ -1,17 +1,24 @@
 /**
  * ARCHIVO: supabase/functions/start-draft-process/index.ts
- * VERSIÓN: 3.0
- * PROTOCOLO: Madrid Resonance Protocol V4.0
- * MISIÓN: Receptionist for new podcast drafts with Perimeter Security.
+ * VERSIÓN: 4.1
+ * PROTOCOLO: Madrid Resonance Protocol V8.0
+ * MISIÓN: Receptionist for new podcast drafts with Perimeter Guard and ZAP compliance.
+ * [REFORMA V4.1]: Restoration of legacy response keys to prevent UI regression.
  * NIVEL DE INTEGRIDAD: 100%
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { guard, GuardContext } from "../_shared/guard.ts";
 
-const handler = async (request: Request, context: GuardContext): Promise<Response> => {
+/**
+ * executeDraftInitiationHandler:
+ * Orquestador para el inicio de misiones de investigación de podcasts.
+ */
+const executeDraftInitiationHandler = async (incomingRequest: Request, context: GuardContext): Promise<Response> => {
+  const correlationIdentification = context.correlationIdentification;
+
   try {
-    const authorizationHeader = request.headers.get('Authorization');
+    const authorizationHeader = incomingRequest.headers.get('Authorization');
     if (!authorizationHeader) {
       return new Response(JSON.stringify({ error: "Acceso no autorizado: Falta Bearer Token." }), {
         status: 401,
@@ -19,7 +26,7 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       });
     }
 
-    const supabaseClient = createClient(
+    const supabaseSovereignClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       {
@@ -29,25 +36,26 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       }
     );
 
-    const payload = await request.json();
+    const submissionPayload = await incomingRequest.json();
 
-    const { data: rpcResultData, error: rpcExceptionInformation } = await supabaseClient.rpc('init_draft_process_v2', {
-      p_payload: payload
+    const { data: rpcResultCollection, error: rpcHardwareExceptionInformation } = await supabaseSovereignClient.rpc('init_draft_process_v2', {
+      p_payload: submissionPayload
     });
 
-    if (rpcExceptionInformation) throw new Error(`DATABASE_FAIL: ${rpcExceptionInformation.message}`);
+    if (rpcHardwareExceptionInformation) throw new Error(`DATABASE_FAIL: ${rpcHardwareExceptionInformation.message}`);
 
-    const result = rpcResultData && rpcResultData[0];
+    const draftInitiationResult = rpcResultCollection && rpcResultCollection[0];
 
-    if (!result) {
+    if (!draftInitiationResult) {
       throw new Error("EMPTY_ORCHESTRATOR_RESPONSE");
     }
 
-    if (!result.allowed) {
+    if (!draftInitiationResult.allowed) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: result.reason
+          error: draftInitiationResult.reason,
+          trace_identification: correlationIdentification
         }),
         {
           status: 403,
@@ -56,14 +64,15 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       );
     }
 
-    console.info(`✅ [start-draft-process][${context.correlationIdentification}] Draft initiated: ${result.draft_id}`);
+    console.info(`✅ [start-draft-process][${correlationIdentification}] Draft initiated: ${draftInitiationResult.draft_id}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        draft_id: result.draft_id,
+        draft_id: draftInitiationResult.draft_id, // RESTORED: Legacy key for UI compatibility
+        draftIdentification: draftInitiationResult.draft_id, // ZAP compliant key
         message: "Misión aceptada. Iniciando fase de investigación profunda.",
-        trace_identification: context.correlationIdentification
+        trace_identification: correlationIdentification
       }),
       {
         status: 202,
@@ -71,11 +80,21 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       }
     );
 
-  } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error(`🔥 [start-draft-process-Fatal][${context.correlationIdentification}]:`, errorMessage);
-    throw exceptionMessageInformation;
+  } catch (hardwareException: unknown) {
+    const exceptionMessageInformationText = hardwareException instanceof Error ? hardwareException.message : "Error desconocido";
+    console.error(`🔥 [start-draft-process-Fatal][${correlationIdentification}]:`, exceptionMessageInformationText);
+
+    return new Response(
+      JSON.stringify({
+        error: exceptionMessageInformationText,
+        trace_identification: correlationIdentification
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      }
+    );
   }
 };
 
-Deno.serve(guard(handler));
+Deno.serve(guard(executeDraftInitiationHandler));
