@@ -254,7 +254,7 @@ export interface GeoEngineReturn {
     refinedAdministratorIntent?: string;
   }) => Promise<void>;
 
-  transcribeVoiceIntent: (audioBase64Data: string) => Promise<GeoActionResponse<{ transcriptionText: string }>>;
+  transcribeVoiceIntent: (audioBase64DataContent: string) => Promise<GeoActionResponse<{ transcriptionTextContent: string }>>;
   reset: () => void;
 }
 
@@ -268,7 +268,7 @@ export interface GeoActionResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
-  error?: string;
+  exceptionInformation?: string;
   trace_identification?: string;
 }
 

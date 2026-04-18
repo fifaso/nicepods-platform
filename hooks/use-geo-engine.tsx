@@ -184,7 +184,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       refinedAdministratorIntent: synthesisParameters.refinedAdministratorIntent
     }),
 
-    transcribeVoiceIntent: (audioBinaryBase64Data: string) => forgeOrchestrator.transcribeVoiceIntent(audioBinaryBase64Data),
+    transcribeVoiceIntent: (audioBinaryBase64DataContent: string) => forgeOrchestrator.transcribeVoiceIntent(audioBinaryBase64DataContent),
 
     reset: () => {
       telemetryCore.terminateHardwareSensors();
