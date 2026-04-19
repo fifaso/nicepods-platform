@@ -1,5 +1,14 @@
-// app/offline/page.tsx
-// VERSIÓN: 4.0 (Fix: Use standard <img> tag to bypass server optimization in offline mode)
+/**
+ * ARCHIVO: app/(platform)/offline/page.tsx
+ * VERSIÓN: 5.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * Misión: Proyectar la biblioteca de crónicas persistentes en modo desconectado.
+ * [REFORMA V5.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
+ */
 
 "use client";
 
@@ -8,124 +17,117 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WifiOff, PlayCircle, Clock, Headphones, Trash2 } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
+import { PodcastWithProfile } from "@/types/podcast";
+import { formatTime } from "@/lib/utils";
 
-// Forzar estático puro
-export const dynamic = 'force-static';
-
-const METADATA_KEY = "offline_podcasts_metadata";
-const CACHE_NAME = "supabase-media-cache";
+const METADATA_STORAGE_KEY = "offline_podcasts_metadata";
+const CACHE_NAME_IDENTIFICATION = "supabase-media-cache";
 
 export default function OfflinePage() {
-  const [downloads, setDownloads] = useState<any[]>([]);
+  const [downloadsCollection, setDownloadsCollection] = useState<PodcastWithProfile[]>([]);
   const { playPodcastAction } = useAudio();
-  // Estado de montaje para evitar errores de hidratación
-  const [isMounted, setIsMounted] = useState(false);
+  const [isComponentMountedStatus, setIsComponentMountedStatus] = useState<boolean>(false);
 
   useEffect(() => {
-    setIsMounted(true);
-    const stored = localStorage.getItem(METADATA_KEY);
-    if (stored) {
+    setIsComponentMountedStatus(true);
+    const storedMetadataText = localStorage.getItem(METADATA_STORAGE_KEY);
+    if (storedMetadataText) {
         try {
-            const library = JSON.parse(stored);
-            setDownloads(Object.values(library));
-        } catch (e) {
-            console.error("Error reading offline metadata", e);
+            const offlineLibraryObject = JSON.parse(storedMetadataText);
+            setDownloadsCollection(Object.values(offlineLibraryObject));
+        } catch (hardwareException) {
+            console.error("🔥 [OfflinePage] Error reading metadata", hardwareException);
         }
     }
   }, []);
 
-  const handleDelete = async (id: number, url: string) => {
+  const handleDeletionAction = async (podcastIdentification: number, audioUniformResourceLocator: string) => {
     if(!confirm("¿Borrar descarga?")) return;
     
     try {
-        const cache = await caches.open(CACHE_NAME);
-        await cache.delete(url);
-    } catch(e) {}
+        const nativeCacheInstance = await caches.open(CACHE_NAME_IDENTIFICATION);
+        await nativeCacheInstance.delete(audioUniformResourceLocator);
+    } catch(hardwareException) {
+        console.error("🔥 [OfflinePage] Cache deletion failed", hardwareException);
+    }
 
-    const stored = localStorage.getItem(METADATA_KEY);
-    if (stored) {
-        const library = JSON.parse(stored);
-        delete library[id];
-        localStorage.setItem(METADATA_KEY, JSON.stringify(library));
-        setDownloads(Object.values(library));
+    const storedMetadataText = localStorage.getItem(METADATA_STORAGE_KEY);
+    if (storedMetadataText) {
+        const offlineLibraryObject = JSON.parse(storedMetadataText);
+        delete offlineLibraryObject[podcastIdentification];
+        localStorage.setItem(METADATA_STORAGE_KEY, JSON.stringify(offlineLibraryObject));
+        setDownloadsCollection(Object.values(offlineLibraryObject));
     }
   };
 
-  // Evitar renderizado en servidor para prevenir mismatch
-  if (!isMounted) return null;
+  if (!isComponentMountedStatus) return null;
 
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen flex flex-col">
       
-      {/* HEADER */}
       <div className="flex flex-col items-center justify-center mb-8 pt-4">
         <div className="bg-red-500/10 p-4 rounded-full mb-4 animate-pulse">
             <WifiOff className="h-10 w-10 text-red-500" />
         </div>
-        <h1 className="text-3xl font-bold text-white text-center">Modo Desconectado</h1>
-        <p className="text-slate-400 mt-2 text-center max-w-xs">
-            Tu biblioteca local está lista.
+        <h1 className="text-3xl font-bold text-white text-center uppercase tracking-tighter italic">Modo Desconectado</h1>
+        <p className="text-zinc-500 mt-2 text-center max-w-xs font-black uppercase text-[10px] tracking-widest">
+            Tu biblioteca local está lista en la Workstation.
         </p>
       </div>
 
-      {/* LISTA */}
       <div className="flex-1">
-        {downloads.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/30">
-                <Headphones className="h-12 w-12 text-slate-700 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-400">Mochila vacía</h3>
-                <p className="text-slate-600 text-sm mt-1 px-6 text-center">
-                    Descarga episodios cuando tengas internet.
+        {downloadsCollection.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800 rounded-[2.5rem] bg-zinc-950/30">
+                <Headphones className="h-12 w-12 text-zinc-700 mb-4" />
+                <h3 className="text-lg font-black text-zinc-500 uppercase tracking-widest">Mochila vacía</h3>
+                <p className="text-zinc-600 text-[10px] font-bold mt-2 px-6 text-center uppercase tracking-widest">
+                    Descarga episodios cuando la sintonía sea estable.
                 </p>
             </div>
         ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <h2 className="text-lg font-bold text-white mb-2 col-span-full flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    Disponibles ({downloads.length})
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <h2 className="text-sm font-black text-white mb-2 col-span-full flex items-center gap-3 uppercase tracking-[0.3em]">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    Nodos Disponibles ({downloadsCollection.length})
                 </h2>
                 
-                {downloads.map((pod) => (
-                    <Card key={pod.id} className="bg-slate-900/80 border-slate-700 overflow-hidden hover:border-purple-500/50 transition-all cursor-pointer group">
-                        <CardContent className="p-3 flex gap-4 items-center">
+                {downloadsCollection.map((podcastItem) => (
+                    <Card key={podcastItem.identification} className="bg-zinc-900/40 border-white/5 overflow-hidden hover:border-primary/40 transition-all cursor-pointer group rounded-[2rem] shadow-2xl">
+                        <CardContent className="p-4 flex gap-5 items-center">
                             
-                            {/* COVER IMAGEN [CORRECCIÓN]: Usamos <img> estándar */}
-                            <div className="relative h-20 w-20 bg-black/40 rounded-lg flex-shrink-0 overflow-hidden shadow-lg border border-slate-700">
-                                 {pod.cover_image_url ? (
+                            <div className="relative h-20 w-20 bg-black/40 rounded-2xl flex-shrink-0 overflow-hidden shadow-lg border border-white/5">
+                                 {podcastItem.coverImageUniformResourceLocator ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img 
-                                        src={pod.cover_image_url} 
-                                        alt={pod.title} 
-                                        className="object-cover w-full h-full"
-                                        loading="eager" // Importante para cargar rápido desde caché
+                                        src={podcastItem.coverImageUniformResourceLocator}
+                                        alt={podcastItem.titleTextContent}
+                                        className="object-cover w-full h-full opacity-60 group-hover:opacity-100 transition-opacity"
+                                        loading="eager"
                                     />
                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-slate-800"><Headphones className="h-6 w-6 text-slate-600" /></div>
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Headphones className="h-6 w-6 text-zinc-600" /></div>
                                  )}
                                  
-                                 {/* Overlay Play */}
                                  <div 
-                                    className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => playPodcastAction(pod)}
+                                    className="absolute inset-0 bg-primary/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => playPodcastAction(podcastItem)}
                                  >
-                                    <PlayCircle className="h-8 w-8 text-white drop-shadow-md" />
+                                    <PlayCircle className="h-10 w-10 text-white drop-shadow-2xl" />
                                  </div>
                             </div>
                             
-                            {/* Info */}
-                            <div className="flex-1 min-w-0 py-1" onClick={() => playPodcastAction(pod)}>
-                                <h3 className="font-bold text-slate-100 truncate text-sm mb-1 leading-tight">{pod.title}</h3>
-                                <p className="text-xs text-slate-400 truncate mb-2">{pod.profiles?.full_name || 'Autor'}</p>
-                                <span className="inline-flex items-center gap-1 text-[10px] text-green-400 bg-green-950/30 px-2 py-0.5 rounded border border-green-900/50">
-                                    <Clock className="h-3 w-3" /> {Math.floor((pod.duration_seconds || 0)/60)} min
+                            <div className="flex-1 min-w-0 py-1" onClick={() => playPodcastAction(podcastItem)}>
+                                <h3 className="font-black text-white truncate text-sm mb-1 leading-tight uppercase tracking-tight italic">{podcastItem.titleTextContent}</h3>
+                                <p className="text-[10px] text-zinc-500 truncate mb-2 font-bold uppercase tracking-widest">{podcastItem.profiles?.fullName || 'Voyager'}</p>
+                                <span className="inline-flex items-center gap-1.5 text-[9px] font-black text-primary bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10 uppercase tracking-widest">
+                                    <Clock className="h-3 w-3" /> {formatTime(podcastItem.playbackDurationSecondsTotal)}
                                 </span>
                             </div>
                             
-                            {/* Delete Button */}
-                            <div className="flex flex-col justify-center border-l border-slate-800 pl-2 ml-1">
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-950/20" onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(pod.id, pod.audio_url);
+                            <div className="flex flex-col justify-center border-l border-white/5 pl-3">
+                                <Button size="icon" variant="ghost" className="h-10 w-10 text-zinc-600 hover:text-red-500 hover:bg-red-500/5 transition-all" onClick={(interactionEvent) => {
+                                    interactionEvent.stopPropagation();
+                                    handleDeletionAction(podcastItem.identification, podcastItem.audioUniformResourceLocator);
                                 }}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>

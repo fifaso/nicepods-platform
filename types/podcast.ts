@@ -1,11 +1,11 @@
 /**
  * ARCHIVE: types/podcast.ts
- * VERSION: 16.0 (Madrid Resonance - Sovereign Edition)
+ * VERSION: 17.0 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: MADRID RESONANCE V7.0
  * 
  * MISSION: Sincronización de Soberanía de la Entidad Podcast.
- * [REFORMA V16.0]: Restauración de alias de compatibilidad (@deprecated) para
- * mantener el Build Shield (BSS) mientras se completa la transición axial.
+ * Purificación absoluta: Eliminación definitiva de alias de legado y parches.
+ * [REFORMA V17.0]: Remoción de campos @deprecated y sellado de nullabilidad.
  *
  * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
  */
@@ -46,9 +46,6 @@ export interface ResearchSource {
   origin: 'vault' | 'web' | 'fresh_research' | 'pulse_selection';
 }
 
-/**
- * INTERFAZ: LocalRecommendation
- */
 export interface LocalRecommendation {
   name: string;
   category: 'history' | 'food' | 'secret' | 'activity' | 'event' | string;
@@ -59,9 +56,6 @@ export interface LocalRecommendation {
   distanceInMeters?: number;
 }
 
-/**
- * INTERFAZ: DiscoveryContextPayload
- */
 export interface DiscoveryContextPayload {
   narrativeHookText: string;
   recommendationsCollection: LocalRecommendation[];
@@ -114,28 +108,28 @@ export interface PodcastWithProfile {
   rootPodcastIdentification: number | null;
   creationTimestamp: string;
   updateTimestamp: string;
-  publicationTimestamp: string | null;
+  publicationTimestamp: string;
 
   // --- METADATA Y CONTENIDO (ZAP) ---
   titleTextContent: string;
-  descriptionTextContent: string | null;
-  contentCategory: string | null;
+  descriptionTextContent: string;
+  contentCategory: string;
   publicationStatus: PodcastStatus;
   intelligenceProcessingStatus: ProcessingStatus;
 
   // --- ACTIVOS MULTIMEDIA (ZAP) ---
-  audioUniformResourceLocator: string | null;
-  coverImageUniformResourceLocator: string | null;
-  playbackDurationSecondsTotal: number | null;
+  audioUniformResourceLocator: string;
+  coverImageUniformResourceLocator: string;
+  playbackDurationSecondsTotal: number;
 
   // --- ESTADO DE INTEGRIDAD ---
   isAudioReady: boolean;
   isImageReady: boolean;
   isEmbeddingReady: boolean;
-  isFeaturedContentStatus: boolean | null;
-  audioAssemblyStatus: AssemblyStatus | null;
-  totalAudioSegmentsCount: number | null;
-  currentAudioSegmentsCount: number | null;
+  isFeaturedContentStatus: boolean;
+  audioAssemblyStatus: AssemblyStatus;
+  totalAudioSegmentsCount: number;
+  currentAudioSegmentsCount: number;
 
   // --- ANALÍTICA Y RENDIMIENTO ---
   playCountTotal: number;
@@ -143,93 +137,35 @@ export interface PodcastWithProfile {
 
   // --- DOSSIERS DE INTELIGENCIA (CRISTAL) ---
   creationMetadataDossier: CreationMetadataPayload | null;
-  intelligenceSourcesCollection: ResearchSource[] | null;
+  intelligenceSourcesCollection: ResearchSource[];
   podcastScriptDossier: PodcastScript | null;
-  artificialIntelligenceTagsCollection: string[] | null;
-  userDefinedTagsCollection: string[] | null;
-  artificialIntelligenceSummaryContent: string | null;
-  narrativeLensPerspective: string | null;
-  artificialIntelligenceAgentVersion: string | null;
+  artificialIntelligenceTagsCollection: string[];
+  userDefinedTagsCollection: string[];
+  artificialIntelligenceSummaryContent: string;
+  narrativeLensPerspective: string;
+  artificialIntelligenceAgentVersion: string;
 
   // --- EXTENSIONES GEODÉSICAS ---
-  placeNameReference: string | null;
+  placeNameReference: string;
   geographicLocationPoint: GeoLocation | null;
-  quoteContextReference: string | null;
-  quoteTimestampMagnitude: number | null;
+  quoteContextReference: string;
+  quoteTimestampMagnitude: number;
 
   // --- NOTAS ADMINISTRATIVAS ---
-  administrativeNotesContent: string | null;
-  isReviewedByUserStatus: boolean | null;
+  administrativeNotesContent: string;
+  isReviewedByUserStatus: boolean;
 
   // --- PERFIL DE AUTORIDAD ---
   profiles: {
-    fullName: string | null;
-    avatarUniformResourceLocator: string | null;
+    fullName: string;
+    avatarUniformResourceLocator: string;
     username: string;
-    reputationScoreValue: number | null;
-    isVerifiedAccountStatus: boolean | null;
-    authorityRole: string | null;
-    // Fallbacks para perfiles SSR
-    full_name?: string | null;
-    avatar_url?: string | null;
-    reputation_score?: number | null;
-    is_verified?: boolean | null;
-    role?: string | null;
+    reputationScoreValue: number;
+    isVerifiedAccountStatus: boolean;
+    authorityRole: string;
   } | null;
-
-  // --- ALIAS DE COMPATIBILIDAD (AXIAL INTEGRITY - @deprecated) ---
-  /** @deprecated Use identification */
-  id: number;
-  /** @deprecated Use authorUserIdentification */
-  user_id: string;
-  /** @deprecated Use parentPodcastIdentification */
-  parent_id: number | null;
-  /** @deprecated Use titleTextContent */
-  title: string;
-  /** @deprecated Use descriptionTextContent */
-  description: string | null;
-  /** @deprecated Use publicationStatus */
-  status: PodcastStatus;
-  /** @deprecated Use intelligenceProcessingStatus */
-  processing_status: ProcessingStatus;
-  /** @deprecated Use audioUniformResourceLocator */
-  audio_url: string | null;
-  /** @deprecated Use coverImageUniformResourceLocator */
-  cover_image_url: string | null;
-  /** @deprecated Use playbackDurationSecondsTotal */
-  duration_seconds: number | null;
-  /** @deprecated Use creationTimestamp */
-  created_at: string;
-  /** @deprecated Use likeCountTotal */
-  like_count: number;
-  /** @deprecated Use playCountTotal */
-  play_count: number;
-  /** @deprecated Use creationMetadataDossier */
-  creation_data: any;
-  /** @deprecated Use intelligenceSourcesCollection */
-  sources: any;
-  /** @deprecated Use podcastScriptDossier */
-  script_text: any;
-  /** @deprecated Use artificialIntelligenceTagsCollection */
-  ai_tags: any;
-  /** @deprecated Use geographicLocationPoint */
-  geo_location: any;
-  /** @deprecated Use isAudioReady */
-  audio_ready: boolean;
-  /** @deprecated Use isImageReady */
-  image_ready: boolean;
-  /** @deprecated Use userDefinedTagsCollection */
-  user_tags: string[] | null;
-  /** @deprecated Use placeNameReference */
-  place_name: string | null;
-  /** @deprecated Use isFeaturedContentStatus */
-  is_featured: boolean | null;
-  /** @deprecated Use isReviewedByUserStatus */
-  reviewed_by_user: boolean | null;
-  /** @deprecated Use creationMetadataDossier?.creationMode */
-  creation_mode: any;
 }
 
 export type PodcastWithGenealogy = PodcastWithProfile & {
-  repliesCollection?: PodcastWithProfile[];
+  repliesCollection: PodcastWithProfile[];
 };
