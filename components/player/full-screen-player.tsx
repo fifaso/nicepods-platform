@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: components/player/full-screen-player.tsx
- * VERSIÓN: 33.0 (Madrid Resonance - Sovereign Edition)
- * PROTOCOLO: Thermal Isolation & Direct-DOM
+ * VERSIÓN: 34.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Thermal Isolation & Direct-DocumentObjectModel
  * 
- * Misión: Orquestar la inmersión total del Voyager con telemetría de alto rendimiento.
- * [REFORMA 33.0]: Migración de métricas de tiempo a Direct-DOM para eliminar re-renders a 60 FPS.
+ * MISIÓN: Orquestar la inmersión total del Voyager con telemetría de alto rendimiento.
+ * [REFORMA 34.0]: Migración absoluta a Direct-DocumentObjectModel para métricas y progreso.
+ * Erradicación de re-renderizados de React por pulso de hardware para máxima eficiencia térmica.
  *
- * Nivel de Integridad: 100% (Soberanía Nominal V8.0)
+ * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V8.0)
  */
 
 "use client";
@@ -30,7 +31,6 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 // --- INFRAESTRUCTURA CORE NICEPOD ---
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { useAudio } from "@/contexts/audio-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -53,59 +53,66 @@ export function FullScreenPlayer() {
     logInteractionEventAction
   } = useAudio();
 
-  const { supabase: supabaseClient, user: authenticatedUser, profile: administratorProfile } = useAuth();
+  const { supabase: supabaseSovereignClient, user: authenticatedUser, profile: administratorProfile } = useAuth();
   const { toast } = useToast();
 
-  // --- REFERENCIAS DE TELEMETRÍA DE HARDWARE (MTI) ---
+  // --- REFERENCIAS DE TELEMETRÍA DE HARDWARE (MainThreadIsolation) ---
   const currentTimeDisplayElementReference = useRef<HTMLSpanElement>(null);
   const totalDurationDisplayElementReference = useRef<HTMLSpanElement>(null);
-  const timelineSliderValueReference = useRef<number>(0);
+  const timelineSliderInputElementReference = useRef<HTMLInputElement>(null);
+
+  const lastTotalAudioDurationSecondsMagnitudeReference = useRef<number>(0);
 
   const [isLikedByVoyagerStatus, setIsLikedByVoyagerStatus] = useState<boolean>(false);
   const [isInteractionProcessActiveStatus, setIsInteractionProcessActiveStatus] = useState<boolean>(false);
 
-  // Mantenemos este estado solo para el Slider de Radix que es controlado,
-  // pero minimizamos su impacto no usándolo para los textos.
-  const [playbackProgressSecondsMagnitude, setPlaybackProgressSecondsMagnitude] = useState<number>(0);
-  const [totalAudioDurationSecondsMagnitude, setTotalAudioDurationSecondsMagnitude] = useState<number>(0);
-
   /**
-   * 1. PROTOCOLO DE SINCRONÍA POR HARDWARE (60 FPS - Direct DOM)
+   * 1. PROTOCOLO DE SINCRONÍA POR HARDWARE (60 FramesPerSecond - Direct-DocumentObjectModel)
+   * Misión: Actualizar la Interfaz de Usuario sin disparar el ciclo de reconciliación de React.
    */
   useEffect(() => {
-    const handleHardwarePulseSynchronization = (event: Event) => {
+    const handleHardwarePulseSynchronizationAction = (operationalEvent: Event) => {
+      // Background Thermal Isolation: Suspender actualizaciones si la pestaña no es visible
       if (document.hidden) return;
 
-      const customEvent = event as CustomEvent<{ currentTime: number; duration: number }>;
-      const { currentTime, duration } = customEvent.detail;
+      const hardwareEventSnapshot = operationalEvent as CustomEvent<{ currentTime: number; duration: number }>;
+      const { currentTime: currentPlaybackTimeSecondsMagnitude, duration: totalAudioDurationSecondsMagnitude } = hardwareEventSnapshot.detail;
       
-      // Actualización Direct-DOM de etiquetas de texto
+      // Actualización Direct-DocumentObjectModel de etiquetas de cronometría
       if (currentTimeDisplayElementReference.current) {
-        currentTimeDisplayElementReference.current.textContent = formatTime(currentTime);
+        currentTimeDisplayElementReference.current.textContent = formatTime(currentPlaybackTimeSecondsMagnitude);
       }
 
-      if (duration > 0 && duration !== totalAudioDurationSecondsMagnitude) {
-        setTotalAudioDurationSecondsMagnitude(duration);
+      // Sincronización de la duración total si ocurre un cambio en el motor
+      if (totalAudioDurationSecondsMagnitude > 0 && totalAudioDurationSecondsMagnitude !== lastTotalAudioDurationSecondsMagnitudeReference.current) {
+        lastTotalAudioDurationSecondsMagnitudeReference.current = totalAudioDurationSecondsMagnitude;
         if (totalDurationDisplayElementReference.current) {
-          totalDurationDisplayElementReference.current.textContent = formatTime(duration);
+          totalDurationDisplayElementReference.current.textContent = formatTime(totalAudioDurationSecondsMagnitude);
+        }
+        if (timelineSliderInputElementReference.current) {
+          timelineSliderInputElementReference.current.max = totalAudioDurationSecondsMagnitude.toString();
         }
       }
 
-      // Sincronización del Slider (React State para el componente de UI)
-      // Nota: Si el slider causara lag, se podría reemplazar por un input range nativo con Direct-DOM
-      setPlaybackProgressSecondsMagnitude(currentTime);
-      timelineSliderValueReference.current = currentTime;
+      // Sincronización del Deslizador (Slider) mediante Manipulación Directa
+      if (timelineSliderInputElementReference.current) {
+        timelineSliderInputElementReference.current.value = currentPlaybackTimeSecondsMagnitude.toString();
+
+        // Actualización del gradiente visual del input range (estilización dinámica)
+        const progressPercentageMagnitude = (currentPlaybackTimeSecondsMagnitude / (totalAudioDurationSecondsMagnitude || 1)) * 100;
+        timelineSliderInputElementReference.current.style.setProperty('--range-progress', `${progressPercentageMagnitude}%`);
+      }
     };
 
-    window.addEventListener('nicepod-timeupdate', handleHardwarePulseSynchronization as EventListener);
+    window.addEventListener('nicepod-timeupdate', handleHardwarePulseSynchronizationAction as EventListener);
 
     return () => {
-      window.removeEventListener('nicepod-timeupdate', handleHardwarePulseSynchronization as EventListener);
+      window.removeEventListener('nicepod-timeupdate', handleHardwarePulseSynchronizationAction as EventListener);
     };
-  }, [totalAudioDurationSecondsMagnitude]);
+  }, []);
 
   /**
-   * 2. VERIFICACIÓN DE RESONANCIA EN BÓVEDA
+   * 2. VERIFICACIÓN DE RESONANCIA EN BÓVEDA NKV
    */
   useEffect(() => {
     if (!authenticatedUser || !currentActivePodcastSnapshot?.identification) {
@@ -114,20 +121,20 @@ export function FullScreenPlayer() {
 
     const checkResonanceStatusAction = async () => {
       try {
-        const { data: resonanceDataSnapshot } = await supabaseClient
+        const { data: resonanceDataSnapshot } = await supabaseSovereignClient
           .from('likes')
           .select('id')
           .match({ user_id: authenticatedUser.id, podcast_id: currentActivePodcastSnapshot.identification })
           .maybeSingle();
         
         setIsLikedByVoyagerStatus(!!resonanceDataSnapshot);
-      } catch (exception: unknown) {
-        nicepodLog("Falla en verificación de Bóveda NKV", exception, 'exceptionInformation');
+      } catch (hardwareException: unknown) {
+        nicepodLog("🔥 [Bóveda-NKV] Falla en verificación de resonancia.", hardwareException, 'exceptionInformation');
       }
     };
     
     checkResonanceStatusAction();
-  }, [authenticatedUser, currentActivePodcastSnapshot?.identification, supabaseClient]);
+  }, [authenticatedUser, currentActivePodcastSnapshot?.identification, supabaseSovereignClient]);
 
   if (!currentActivePodcastSnapshot) {
     return null;
@@ -135,9 +142,12 @@ export function FullScreenPlayer() {
 
   // --- MANEJADORES DE ACCIÓN TÁCTICA ---
 
-  const handleTimelineAdjustmentAction = (value: number[]) => {
-    const targetTimeSecondsMagnitude = value[0];
-    setPlaybackProgressSecondsMagnitude(targetTimeSecondsMagnitude);
+  /**
+   * handleTimelineAdjustmentAction:
+   * Misión: Ejecutar el salto temporal (seek) en el motor de audio.
+   */
+  const handleTimelineAdjustmentAction = (mouseEvent: React.ChangeEvent<HTMLInputElement>) => {
+    const targetTimeSecondsMagnitude = parseFloat(mouseEvent.target.value);
     seekToTimeAction(targetTimeSecondsMagnitude);
   };
 
@@ -152,12 +162,12 @@ export function FullScreenPlayer() {
 
     try {
       if (originalResonanceStateStatus) {
-        await supabaseClient
+        await supabaseSovereignClient
           .from('likes')
           .delete()
           .match({ user_id: authenticatedUser.id, podcast_id: currentActivePodcastSnapshot.identification });
       } else {
-        await supabaseClient
+        await supabaseSovereignClient
           .from('likes')
           .insert({ user_id: authenticatedUser.id, podcast_id: currentActivePodcastSnapshot.identification });
         
@@ -168,9 +178,9 @@ export function FullScreenPlayer() {
           className: "bg-primary text-white border-none font-black uppercase tracking-widest text-[10px]" 
         });
       }
-    } catch (exception: unknown) {
-      setIsLikedByVoyagerStatus(originalResonanceStateStatus); // Reversión de estado (Rollback)
-      nicepodLog("🔥 [Resonance-Fail]:", exception, 'exceptionInformation');
+    } catch (hardwareException: unknown) {
+      setIsLikedByVoyagerStatus(originalResonanceStateStatus); // Reversión de estado (Rollback Determinista)
+      nicepodLog("🔥 [Resonance-Fail]: Error en mutación de Bóveda.", hardwareException, 'exceptionInformation');
     } finally {
       setIsInteractionProcessActiveStatus(false);
     }
@@ -187,10 +197,10 @@ export function FullScreenPlayer() {
         await logInteractionEventAction('shared');
       } else {
         await navigator.clipboard.writeText(resourceUniformResourceLocator);
-        toast({ title: "Enlace copiado al sector de memoria." });
+        toast({ title: "Enlace copiado al sector de memoria local." });
       }
     } catch {
-      nicepodLog("Share protocol interrupted by hardware.");
+      nicepodLog("Protocolo de compartición interrumpido por el hardware.");
     }
   };
 
@@ -206,12 +216,14 @@ export function FullScreenPlayer() {
         transition={{ type: "spring", damping: 30, stiffness: 200 }}
         className="fixed inset-0 z-[200] bg-[#020202] flex flex-col overflow-hidden selection:bg-primary/30"
       >
+        {/* EFECTOS VISUALES DE AURORA (Thermal Passive) */}
         <div className="absolute inset-0 pointer-events-none opacity-20 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/20 via-transparent to-indigo-950/30 blur-[150px]" />
         </div>
 
         <div className="relative z-10 flex flex-col h-full w-full max-w-screen-2xl mx-auto">
           
+          {/* CABECERA TÁCTICA */}
           <header className="flex items-center justify-between p-6 md:p-10 flex-shrink-0">
             <Button 
               onClick={collapsePlayerInterface}
@@ -236,6 +248,7 @@ export function FullScreenPlayer() {
             </div>
           </header>
 
+          {/* ESCENARIO PRINCIPAL (Media Stage) */}
           <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-16 px-6 md:px-14 items-center overflow-hidden">
             
             <div className="hidden lg:flex lg:col-span-5 flex-col items-center justify-center space-y-12">
@@ -255,13 +268,14 @@ export function FullScreenPlayer() {
               </div>
             </div>
 
+            {/* VISOR DE NARRATIVA (Teleprompter) */}
             <div className="lg:col-span-7 h-full w-full bg-[#080808] rounded-[3.5rem] border border-white/10 relative overflow-hidden shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]">
               <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#080808] to-transparent z-20 pointer-events-none" />
               
               <div className="h-full w-full">
                 <ScriptViewer 
                   narrativeScriptContent={currentActivePodcastSnapshot?.podcastScriptDossier ?? null}
-                  playbackDurationSecondsMagnitude={currentActivePodcastSnapshot?.playbackDurationSecondsTotal || totalAudioDurationSecondsMagnitude}
+                  playbackDurationSecondsMagnitude={currentActivePodcastSnapshot?.playbackDurationSecondsTotal || 0}
                   additionalTailwindClassName="px-8 md:px-16"
                 />
               </div>
@@ -270,16 +284,28 @@ export function FullScreenPlayer() {
             </div>
           </main>
 
+          {/* PANEL DE CONTROL ACÚSTICO */}
           <footer className="p-8 md:p-12 space-y-10 flex-shrink-0">
             
+            {/* LÍNEA DE TIEMPO DE ALTA PRECISIÓN */}
             <div className="max-w-4xl mx-auto w-full space-y-6">
-              <Slider 
-                value={[playbackProgressSecondsMagnitude]}
-                max={currentActivePodcastSnapshot?.playbackDurationSecondsTotal || totalAudioDurationSecondsMagnitude || 100}
-                step={0.1} 
-                onValueChange={handleTimelineAdjustmentAction} 
-                className="cursor-pointer" 
-              />
+              <div className="relative w-full h-6 flex items-center group">
+                <input
+                  type="range"
+                  ref={timelineSliderInputElementReference}
+                  min="0"
+                  max={currentActivePodcastSnapshot?.playbackDurationSecondsTotal || 100}
+                  step="0.1"
+                  defaultValue="0"
+                  onChange={handleTimelineAdjustmentAction}
+                  className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer outline-none transition-all group-hover:h-2"
+                  style={{
+                    accentColor: '#8b5cf6',
+                    background: `linear-gradient(to right, #8b5cf6 var(--range-progress, 0%), rgba(255,255,255,0.1) var(--range-progress, 0%))`
+                  }}
+                />
+              </div>
+
               <div className="flex justify-between items-center text-[11px] font-black font-mono tracking-[0.4em] uppercase px-1">
                 <span className="text-primary tabular-nums">
                   <span ref={currentTimeDisplayElementReference}>00:00</span>
@@ -291,6 +317,7 @@ export function FullScreenPlayer() {
               </div>
             </div>
 
+            {/* BOTONERA DE ACCIÓN SOBERANA */}
             <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
               
               <Button 

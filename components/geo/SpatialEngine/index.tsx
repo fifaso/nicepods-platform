@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 18.0
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * VERSIÓN: 19.0
+ * PROTOCOLO: MADRID RESONANCE V8.0
  * MISIÓN: Orquestar el Hub Espacial con sintonización nominal y tipos BSS.
- * [THERMIC V1.0]: Reforzamiento ZAP en estados locales de interfaz.
+ * [THERMIC V2.0]: Reforzamiento ZAP en estados locales de interfaz y purificación de descriptores geodésicos.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 

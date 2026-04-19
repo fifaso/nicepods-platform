@@ -3,8 +3,8 @@
  * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: METAL-TO-CRYSTAL DATA PURIFICATION
  * MISIÓN: Capa de Aislamiento de Soberanía para la Entidad Podcast.
- * [REFORMA V8.3]: Purga total de alias heredados y campos snake_case para alineación con V8.3.
- * NIVEL DE INTEGRIDAD: 100% (Strategist Verified)
+ * [REFORMA V8.3]: Erradicación total de alias legados y campos snake_case.
+ * NIVEL DE INTEGRIDAD: 100% (Purifier Verified)
  */
 
 import {
