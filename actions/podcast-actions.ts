@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: actions/podcast-actions.ts
- * VERSIÓN: 8.1 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: Intellectual Capital & Traceability
- * MISIÓN: Sincronización del Flujo de Datos (Metal-to-Crystal Mapping) y endurecimiento de la trazabilidad.
- * NIVEL DE INTEGRIDAD: 100% (Soberano)
+ * MISIÓN: Sincronización del Flujo de Datos (Metal-to-Crystal Mapping) y endurecimiento de la trazabilidad industrial.
+ * NIVEL DE INTEGRIDAD: 100% (Scribe & Strategist Verified)
  */
 
 "use server";
@@ -16,8 +16,14 @@ import { nicepodLog } from "@/lib/utils";
 import { transformDatabasePodcastRecordToSovereignEntity } from "@/lib/mappers/podcast-sovereign-mapper";
 
 /**
- * getPublishedPodcastsAction:
- * Misión: Recuperar las crónicas públicas de la malla con transformación soberana.
+ * getPublishedPodcastsAction
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Recuperar las crónicas públicas de la malla global mediante transformación soberana.
+ * Implementa el Traceability Protocol para auditar el volumen de datos procesados.
+ *
+ * @param resultLimitMagnitude Cantidad máxima de crónicas a recuperar.
+ * @returns Colección de crónicas purificadas para el Crystal.
  */
 export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 50): Promise<PodcastWithProfile[]> {
   const supabaseSovereignClient = createClient();
@@ -32,8 +38,8 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
 
     if (queryHardwareExceptionInformation) {
       nicepodLog(
-        "🔥 [Podcast-Action-Error][GetPublished]: Excepción de Hardware en Consulta.",
-        { exceptionMessageInformationText: queryHardwareExceptionInformation.message },
+        "🔥 [Podcast-Action-Error][GetPublished]: Excepción de Hardware en Consulta de Red.",
+        { exceptionInformationText: queryHardwareExceptionInformation.message },
         'exceptionInformation'
       );
       throw queryHardwareExceptionInformation;
@@ -41,7 +47,7 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
 
     // Auditoría de Transformación (Traceability Protocol)
     nicepodLog(
-      "🔄 [Podcast-Action][GetPublished]: Iniciando transmutación soberana de registros.",
+      "🔄 [Podcast-Action][GetPublished]: Iniciando transmutación soberana de crónicas públicas.",
       { collectionCountMagnitude: (publishedPodcastsDatabaseResults || []).length }
     );
 
@@ -49,16 +55,21 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
       transformDatabasePodcastRecordToSovereignEntity(podcastItem)
     );
 
-  } catch (exceptionMessageInformation: unknown) {
-    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]:", exceptionMessageInformationText, 'exceptionInformation');
+  } catch (exceptionInformation: unknown) {
+    const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]: Colapso en el pipeline de recuperación.", { exceptionInformationText }, 'exceptionInformation');
     return [];
   }
 }
 
 /**
- * getUserPodcastsAction:
- * Misión: Recuperar el inventario de crónicas del Voyager autenticado.
+ * getUserPodcastsAction
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Recuperar el inventario personal de crónicas del Voyager autenticado.
+ * Aplica la Doctrina DIS (Idempotencia e Identidad) mediante validación SSR de sesión.
+ *
+ * @returns Colección de crónicas del usuario purificadas.
  */
 export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
   const supabaseSovereignClient = createClient();
@@ -67,7 +78,7 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
   const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
 
   if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
-    nicepodLog("🛑 [Podcast-Engine] Acceso denegado: Sesión no válida.", "AUTHENTICATION_REQUIRED", 'exceptionInformation');
+    nicepodLog("🛑 [Podcast-Action][GetUser] Acceso denegado: Sesión no detectada en el servidor.", "AUTHENTICATION_REQUIRED", 'exceptionInformation');
     return [];
   }
 
@@ -82,8 +93,8 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
 
     if (queryHardwareExceptionInformation) {
        nicepodLog(
-        "🔥 [Podcast-Action-Error][GetUser]: Excepción de Hardware en Consulta de Inventario.",
-        { exceptionMessageInformationText: queryHardwareExceptionInformation.message },
+        "🔥 [Podcast-Action-Error][GetUser]: Excepción de Hardware en Consulta de Inventario Personal.",
+        { exceptionInformationText: queryHardwareExceptionInformation.message },
         'exceptionInformation'
       );
       throw queryHardwareExceptionInformation;
@@ -91,17 +102,20 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
 
     // Auditoría de Transformación (Traceability Protocol)
     nicepodLog(
-      "🔄 [Podcast-Action][GetUser]: Iniciando transmutación soberana de inventario.",
-      { collectionCountMagnitude: (userPodcastsDatabaseResults || []).length }
+      "🔄 [Podcast-Action][GetUser]: Iniciando transmutación soberana de inventario del Voyager.",
+      {
+        collectionCountMagnitude: (userPodcastsDatabaseResults || []).length,
+        userIdentification: authenticatedUserIdentification
+      }
     );
 
     return (userPodcastsDatabaseResults || []).map((podcastItem) =>
       transformDatabasePodcastRecordToSovereignEntity(podcastItem)
     );
 
-  } catch (exceptionMessageInformation: unknown) {
-    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", exceptionMessageInformationText, 'exceptionInformation');
+  } catch (exceptionInformation: unknown) {
+    const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]: Colapso en la recuperación de inventario personal.", { exceptionInformationText }, 'exceptionInformation');
     return [];
   }
 }

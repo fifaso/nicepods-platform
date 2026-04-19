@@ -82,7 +82,7 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardComponent
                     description: `La fuente "${sourceTitle}" ha sido erradicada de la Bóveda.`,
                 });
             } else {
-                throw new Error(administrativeResponse.message || administrativeResponse.exceptionMessageInformation || "Fallo en la purga.");
+                throw new Error(administrativeResponse.message || administrativeResponse.exceptionInformationText || "Fallo en la purga.");
             }
         } catch (vaultException: unknown) {
             const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";

@@ -1,9 +1,10 @@
 /**
  * ARCHIVO: app/(platform)/dashboard/page.tsx
- * VERSIÓN: 5.1 (Madrid Resonance)
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: Intellectual Capital & Traceability
  * MISIÓN: Cosecha de inteligencia blindada y orquestación de datos en el servidor con trazabilidad industrial.
- * NIVEL DE INTEGRIDAD: 100%
+ * [REFORMA V8.3]: Endurecimiento de Metadatos de Optimización de Motores de Búsqueda (SEO) y documentación del Fan-Out Pipeline.
+ * NIVEL DE INTEGRIDAD: 100% (Scribe Verified)
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -11,10 +12,25 @@ import { redirect } from "next/navigation";
 import { DashboardClient } from "./dashboard-client";
 import { Tables } from "@/types/database.types";
 import { nicepodLog } from "@/lib/utils";
+import { Metadata } from "next";
+
+/**
+ * [METADATA API]: Configuración Soberana de Optimización de Motores de Búsqueda.
+ */
+export const metadata: Metadata = {
+  title: "Panel de Inteligencia | NicePod Workstation",
+  description: "Terminal operativa para la gestión de crónicas, descubrimiento semántico y análisis de resonancia geodésica.",
+  keywords: ["Podcasting de Inteligencia Artificial", "Descubrimiento Semántico", "Resonancia Geodésica", "NicePod"],
+  robots: { index: true, follow: true },
+};
 
 /**
  * DashboardPage: El orquestador de datos de alto nivel en el servidor.
- * Misión: Ejecutar el Handshake T0 y la cosecha de capital intelectual previa.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Ejecutar el "Handshake T0" (Autenticación) y el "The Fan-Out Pipeline" (Cosecha concurrente).
+ * Misión: Minimizar el tiempo hasta el primer byte (Time To First Byte) mediante la
+ * paralelización de consultas al Metal y saneamiento preventivo en el Crystal.
  */
 export default async function DashboardPage() {
   // 1. INSTANCIACIÓN DEL PUENTE DE RED SOBERANO (SUPABASE SERVER)
@@ -26,11 +42,11 @@ export default async function DashboardPage() {
    */
   const { 
     data: { user: authenticatedUser }, 
-    error: authenticationHardwareException 
+    error: authenticationHardwareExceptionInformation
   } = await supabaseSovereignClient.auth.getUser();
 
   // Si la identidad es nula o el hardware de red falla, expulsión inmediata por seguridad.
-  if (authenticationHardwareException || !authenticatedUser) {
+  if (authenticationHardwareExceptionInformation || !authenticatedUser) {
     redirect("/login");
   }
 
@@ -42,6 +58,7 @@ export default async function DashboardPage() {
     /**
      * 3. COSECHA PARALELA DE INTELIGENCIA (THE FAN-OUT PIPELINE)
      * Misión: Concurrencia de consultas para minimizar el Time To First Byte (TTFB).
+     * COMPLEJIDAD: O(N) donde N es el número de microservicios o tablas consultadas en paralelo.
      */
     const [
       discoveryFeedNetworkResponse, 
@@ -62,7 +79,7 @@ export default async function DashboardPage() {
      * 4. BARRERA DE PROTECCIÓN Y SANEAMIENTO (DATA HYGIENE)
      */
 
-    // A. Saneamiento del Feed de Inteligencia [RESOLUCIÓN TS2322]
+    // A. Saneamiento del Feed de Inteligencia
     const rawIntelligenceFeedData = discoveryFeedNetworkResponse.data || { epicenter: [], semantic_connections: [] };
     
     const initialIntelligenceFeedCollection = {
@@ -75,10 +92,6 @@ export default async function DashboardPage() {
     };
 
     // B. Saneamiento del Perfil de Autoridad [BUILD SHIELD SOVEREIGNTY]
-    /** 
-     * initialAdministratorProfile: Se garantiza el tipado mediante Tables<'profiles'>
-     * evitando el uso de 'any' durante el despacho hacia el Cristal.
-     */
     const initialAdministratorProfile: Tables<'profiles'> = userProfileDatabaseResponse.data || {
       id: authenticatedUserIdentification,
       full_name: authenticatedUser.user_metadata?.full_name || "Voyager NicePod",
@@ -111,7 +124,6 @@ export default async function DashboardPage() {
 
     /**
      * 6. DESPACHO AL CHASIS CLIENTE (HANDOVER)
-     * [RESOLUCIÓN FINAL TS2322]: Alineación absoluta de descriptores nominales.
      */
     return (
       <DashboardClient
@@ -127,11 +139,11 @@ export default async function DashboardPage() {
      * 7. PROTOCOLO DE GESTIÓN DE PÁNICO (EMERGENCY FALLBACK)
      * Garantizamos que el Voyager acceda a la terminal incluso ante colapsos de red.
      */
-    const exceptionMessage = criticalSystemException instanceof Error 
+    const exceptionMessageInformation = criticalSystemException instanceof Error
       ? criticalSystemException.message 
       : "Fallo desconocido en la cosecha T0.";
     
-    console.error("🔥 [Dashboard-Fatal-Exception]:", exceptionMessage);
+    nicepodLog("🔥 [Dashboard-Fatal-Exception]:", { exceptionMessageInformation }, 'exceptionInformation');
 
     return (
       <DashboardClient
@@ -153,13 +165,3 @@ export default async function DashboardPage() {
     );
   }
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V24.0):
- * 1. Zero Abbreviations Policy (ZAP): Purificación total. 'res' -> 'Response', 
- *    'err' -> 'HardwareException', 'id' -> 'Identification', 'feed' -> 'IntelligenceFeedCollection'.
- * 2. TS2322 Resolution: Sincronización milimétrica del objeto de propiedades enviado 
- *    al 'DashboardClient', eliminando la amnesia nominal del servidor.
- * 3. BSS Contract Seal: Se ha eliminado el casting 'as any' en la entrega del perfil, 
- *    utilizando una estructura de fallback que satisface el tipo 'Tables<'profiles'>'.
- */

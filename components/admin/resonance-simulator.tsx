@@ -65,7 +65,7 @@ export function ResonanceSimulator() {
                     setSimulationExceptionMessage("No se encontraron hechos atómicos que superen el umbral de similitud.");
                 }
             } else {
-                setSimulationExceptionMessage(administrativeResponse.exceptionMessageInformation || administrativeResponse.message || "Fallo en la calibración del radar.");
+                setSimulationExceptionMessage(administrativeResponse.exceptionInformationText || administrativeResponse.message || "Fallo en la calibración del radar.");
             }
         } catch (vaultException: unknown) {
             const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";

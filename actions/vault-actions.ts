@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: actions/vault-actions.ts
- * VERSIÓN: 4.2 (Madrid Resonance - Sovereign Protocol V4.2)
- * PROTOCOLO: Madrid Resonance Protocol V4.0
- * MISIÓN: Gestión administrativa del Knowledge Vault (NKV) con tipado soberano y ZAP absoluto.
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Protocol V8.3)
+ * PROTOCOLO: Madrid Resonance Protocol V8.3
+ * MISIÓN: Gestión administrativa del Knowledge Vault (NKV) con tipado soberano y trazabilidad industrial.
  * NIVEL DE INTEGRIDAD: CRITICAL (100% ZAP / BSS Green)
  */
 
@@ -10,6 +10,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { nicepodLog } from "@/lib/utils";
 
 /**
  * INTERFAZ: VaultKnowledgeChunk
@@ -58,18 +59,22 @@ export type VaultActionResponse<T = null> = {
     success: boolean;
     message: string;
     data: T | null;
-    exceptionMessageInformation?: string;
+    exceptionInformationText?: string;
 };
 
 /**
  * PROTOCOLO: ensureAdminAuthority
- * Misión: Validar que la petición proviene de un nodo con privilegios administrativos.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Implementar una barrera de seguridad de "Confianza Cero" (Zero Trust) para acciones administrativas.
+ * Verifica la identidad del usuario y su rol de 'admin' en el Metal antes de permitir cualquier mutación.
  */
 async function ensureAdminAuthority() {
     const supabaseSovereignClient = createClient();
 
     const { data: { user: authenticatedAdministratorSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
     if (authenticationHardwareExceptionInformation || !authenticatedAdministratorSnapshot) {
+        nicepodLog("🛑 [Vault-Authority] Intento de acceso administrativo sin sesión válida.", "AUTHENTICATION_REQUIRED", 'exceptionInformation');
         throw new Error("AUTENTICACION_REQUERIDA: Sesión no detectada.");
     }
 
@@ -80,6 +85,11 @@ async function ensureAdminAuthority() {
         .single();
 
     if (administratorProfileHardwareExceptionInformation || administratorProfileSnapshot?.role !== 'admin') {
+        nicepodLog(
+            "🛑 [Vault-Authority] Violación de privilegios administrativos detectada.",
+            { userIdentification: authenticatedAdministratorSnapshot.id },
+            'warning'
+        );
         throw new Error("ACCESO_RESTRINGIDO: Se requieren privilegios de administración.");
     }
 
@@ -88,7 +98,9 @@ async function ensureAdminAuthority() {
 
 /**
  * FUNCIÓN: listVaultSources
- * Misión: Recuperar el inventario completo de fuentes de sabiduría (NKV).
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Recuperar el inventario de fuentes de conocimiento (NKV) para su gestión en el panel administrativo.
  */
 export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowledgeSource[]>> {
     try {
@@ -116,13 +128,13 @@ export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowl
             message: "Inventario de Bóveda sincronizado con éxito.",
             data: knowledgeSourcesDatabaseResultsCollection as unknown as VaultKnowledgeSource[]
         };
-    } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][List-Sources]:", exceptionMessageInformationText);
+    } catch (exceptionInformation: unknown) {
+        const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : "Error desconocido";
+        nicepodLog("🔥 [Vault-Action][List-Sources]: Excepción en recuperación de inventario.", { exceptionInformationText }, 'exceptionInformation');
         return {
             success: false,
             message: "Fallo al recuperar el inventario de la Bóveda.",
-            exceptionMessageInformation: exceptionMessageInformationText,
+            exceptionInformationText,
             data: []
         };
     }
@@ -130,7 +142,9 @@ export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowl
 
 /**
  * FUNCIÓN: deleteVaultSource
- * Misión: Purga física y lógica de una fuente de conocimiento y sus vectores asociados.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Ejecutar la eliminación atómica de una fuente y sus vectores de conocimiento asociados.
  */
 export async function deleteVaultSource(sourceIdentification: string): Promise<VaultActionResponse> {
     try {
@@ -143,6 +157,7 @@ export async function deleteVaultSource(sourceIdentification: string): Promise<V
 
         if (databaseDeleteHardwareExceptionInformation) throw databaseDeleteHardwareExceptionInformation;
 
+        nicepodLog("🗑️ [Vault-Action][Delete-Source]: Fuente eliminada correctamente.", { sourceIdentification });
         revalidatePath("/admin/vault");
 
         return {
@@ -150,13 +165,13 @@ export async function deleteVaultSource(sourceIdentification: string): Promise<V
             message: "Fuente y vectores asociados eliminados de la Bóveda.",
             data: null
         };
-    } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][Delete-Source]:", exceptionMessageInformationText);
+    } catch (exceptionInformation: unknown) {
+        const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : "Error desconocido";
+        nicepodLog("🔥 [Vault-Action][Delete-Source]: Fallo en purga física.", { exceptionInformationText, sourceIdentification }, 'exceptionInformation');
         return {
             success: false,
             message: "No se pudo procesar la eliminación de la fuente.",
-            exceptionMessageInformation: exceptionMessageInformationText,
+            exceptionInformationText,
             data: null
         };
     }
@@ -164,7 +179,9 @@ export async function deleteVaultSource(sourceIdentification: string): Promise<V
 
 /**
  * FUNCIÓN: injectManualKnowledge
- * Misión: Inyección de inteligencia curada manualmente por el administrador.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Permitir la inyección de inteligencia curada por humanos en el pipeline de vectorización.
  */
 export async function injectManualKnowledge(knowledgeInjectionPayload: {
     title: string;
@@ -186,6 +203,7 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
 
         if (edgeFunctionInvokeHardwareExceptionInformation) throw new Error(edgeFunctionInvokeHardwareExceptionInformation.message || "Error en el pipeline de refinería.");
 
+        nicepodLog("🧪 [Vault-Action][Inject-Knowledge]: Inyección manual procesada por Refinería.");
         revalidatePath("/admin/vault");
 
         return {
@@ -193,13 +211,13 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
             message: "Inteligencia inyectada y vectorizada correctamente.",
             data: null
         };
-    } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : String(exceptionMessageInformation);
-        console.error("🔥 [Vault-Action][Inject-Knowledge]:", exceptionMessageInformationText);
+    } catch (exceptionInformation: unknown) {
+        const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : String(exceptionInformation);
+        nicepodLog("🔥 [Vault-Action][Inject-Knowledge]: Rechazo en pipeline de inyección.", { exceptionInformationText }, 'exceptionInformation');
         return {
             success: false,
             message: "La Bóveda rechazó la inyección de conocimiento.",
-            exceptionMessageInformation: exceptionMessageInformationText,
+            exceptionInformationText,
             data: null
         };
     }
@@ -207,7 +225,9 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
 
 /**
  * FUNCIÓN: simulateVaultSearch
- * Misión: Laboratorio de Resonancia Semántica.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Proporcionar una terminal de prueba para validar la relevancia semántica de los vectores almacenados.
  */
 export async function simulateVaultSearch(
     searchQueryTerm: string,
@@ -232,13 +252,13 @@ export async function simulateVaultSearch(
             message: "Simulación de búsqueda completada.",
             data: resonanceResultsData as SemanticResonanceNode[]
         };
-    } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][Simulate-Search]:", exceptionMessageInformationText);
+    } catch (exceptionInformation: unknown) {
+        const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : "Error desconocido";
+        nicepodLog("🔥 [Vault-Action][Simulate-Search]: Error en resonancia semántica.", { exceptionInformationText }, 'exceptionInformation');
         return {
             success: false,
             message: "Error en la simulación de resonancia.",
-            exceptionMessageInformation: exceptionMessageInformationText,
+            exceptionInformationText,
             data: []
         };
     }
@@ -246,7 +266,9 @@ export async function simulateVaultSearch(
 
 /**
  * FUNCIÓN: getVaultMetrics
- * Misión: Telemetría de densidad informativa de NicePod.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Monitorear la densidad informativa y el volumen de fragmentos de conocimiento en el NKV.
  */
 export async function getVaultMetrics(): Promise<VaultActionResponse<{
     totalSourcesCount: number;
@@ -265,15 +287,16 @@ export async function getVaultMetrics(): Promise<VaultActionResponse<{
             message: "Métricas de Bóveda actualizadas.",
             data: {
                 totalSourcesCount: sourcesCountResultsSnapshot.count || 0,
-                totalChunksCount: chunksCountResultsSnapshot.count || 0
+                totalChunksCount: sourcesCountResultsSnapshot.count || 0
             }
         };
-    } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    } catch (exceptionInformation: unknown) {
+        const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : "Error desconocido";
+        nicepodLog("🔥 [Vault-Action][Get-Metrics]: Fallo en telemetría de densidad.", { exceptionInformationText }, 'exceptionInformation');
         return {
             success: false,
             message: "No se pudieron obtener métricas del sistema.",
-            exceptionMessageInformation: exceptionMessageInformationText,
+            exceptionInformationText,
             data: null
         };
     }

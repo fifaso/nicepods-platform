@@ -102,7 +102,7 @@ export default async function VaultPage() {
          {!administrativeResponse.success && (
            <div className="sm:col-span-2 lg:col-span-1 p-6 bg-red-950/20 border border-red-500/20 rounded-[2rem] flex flex-col justify-center">
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-2">Fallo de Subsistema</p>
-              <p className="text-xs text-red-400 font-medium">{administrativeResponse.exceptionMessageInformation || "No se pudo establecer contacto con PostgreSQL."}</p>
+              <p className="text-xs text-red-400 font-medium">{administrativeResponse.exceptionInformationText || "No se pudo establecer contacto con PostgreSQL."}</p>
            </div>
          )}
       </div>
