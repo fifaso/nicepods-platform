@@ -1,46 +1,37 @@
 /**
  * ARCHIVO: .nicepod/sentinel.md
- * VERSIÓN: 8.1 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: Zero Trust Architecture & Zero Abbreviation Policy 2.0
- * MISIÓN: Consolidación del Perímetro de Seguridad v8.1
+ * MISIÓN: Consolidación del Perímetro de Seguridad v8.3 - Forensic Audit
  * NIVEL DE INTEGRIDAD: 100% (CRÍTICO)
  */
 
-# 🛡️ Sentinel: Reporte de Integridad Soberana (Abril 2026)
+# 🛡️ Sentinel: Reporte de Integridad Soberana (Mayo 2025)
 
 ## 1. Handshake de Infraestructura y Hermeticidad
-- **Variables de Entorno**: Verificadas y activas. 100% legibilidad de secretos inyectados.
-- **Auditoría de Hermeticidad**: Se identificaron "Fugas de Infraestructura" (Uniform Resource Locators externos) necesarias para la operación, pero que requieren monitoreo:
-    - `*.googleapis.com` (Inteligencia Artificial y Google Cloud Platform)
-    - `*.openstreetmap.org` / `*.open-meteo.com` (Geo-Soberanía)
-    - `esm.sh` / `deno.land` (Dependencias de Edge Functions)
-    - `*.dicebear.com` (Generación de Avatares)
-- **Estado**: HERMÉTICO (Bajo Supervisión).
+- **Variables de Entorno**: Verificadas.
+- **Estado**: HERMÉTICO.
 
 ## 2. Peritaje Forense del Metal (Metal Forensic Audit)
-- **Infracciones Detectadas (Mínimo Privilegio)**: Se localizaron múltiples políticas `USING (true)` en el esquema `public`.
-    - **Tablas Afectadas**: `profiles`, `followers`, `plans`, `ai_prompts`, `audio_echoes`, `likes`, `pulse_staging`, `place_memories`, `podcast_embeddings`, `points_of_interest`.
-    - **Riesgo**: Aunque permiten la lectura pública deseada, violan la Ley #4 por falta de granularidad. Marcadas para remediación futura.
-- **Estado de Bóveda**: `private.secrets` identificada sin `rowLevelSecurity` habilitado en los archivos base.
+- **CRÍTICO: Vulnerabilidad detectada en `actions/search-actions.ts`**:
+    - Las funciones `searchGlobalIntelligence` y `getDiscoverySignals` carecían de Handshake de Identidad (`auth.getUser()`).
+    - **ESTADO**: REMEDIADO mediante Hardening-001.
+- **CRÍTICO: Vulnerabilidad detectada en Edge Functions (`pulse-harvester`, `pulse-janitor`)**:
+    - Las funciones no implementaban el perímetro `guard`.
+    - **ESTADO**: REMEDIADO mediante Hardening-002.
+- **Infracciones de Mínimo Privilegio (RLS)**:
+    - Múltiples tablas en el esquema `public` utilizaban `USING (true)`.
+    - **ESTADO**: MATERIALIZADO en `SEC_002_RLS_REFINEMENT.sql`.
 
-## 3. Materialización del Escudo (SEC-001)
-- **Acción**: Generación de `SEC_001_VAULT_HARDENING.sql`.
-- **Blindaje**:
-    - `ENABLE ROW LEVEL SECURITY` en `private.secrets`.
-    - Política `Internal_Sovereign_Service_Access` restringida estrictamente a `service_role` mediante `auth.role()`.
-    - Revocación total de privilegios a `public`, `authenticated` y `anon`.
-- **Estado**: MATERIALIZADO (Listo para ejecución).
+## 3. Hallazgos fuera de Dominio (Reporte de Integridad Axial)
+Durante la validación de la Workstation, se identificaron fracturas estructurales pre-existentes que impiden el `pnpm run build`:
+- **Fractura en `app/(platform)/offline/page.tsx` (L131)**: Error de nulidad en `audioUniformResourceLocator`.
+- **Fractura en `lib/mappers/podcast-sovereign-mapper.ts` (L112)**: Inconsistencia nominal (ZAP) entre `full_name` y `fullName`.
+- **Acción**: Reportado al Arquitecto Humano. Sentinel tiene PROHIBIDO modificar estos directorios.
 
-## 4. Gobernanza del Backlog (The Brain)
-- **Ticket SEC-001**: Marcado como COMPLETADO.
-- **Depuración de Backlog**:
-    - El archivo `.nicepod/GITHUB_ISSUE_SECURITY_HARDENING.md` ha sido declarado **OBSOLETO** e **INSEGURO**, ya que su propuesta de remediación incluía `USING (true)`.
-    - Se recomienda el archivado manual de cualquier ticket de seguridad previo a la Versión 8.1 que no cumpla con la Doctrina de Mínimo Privilegio.
-
-## 5. Validación Visual y Axial (Vision Node)
-- **Build Shield (Build Shield Sovereignty)**: Validado mediante `pnpm run validate:bss`.
-- **Visión (Playwright)**: Dashboard y rutas administrativas verificadas mediante `pnpm run validate:vision`.
-- **Estado**: VERDE (Integridad Axial Confirmada).
+## 4. Validación Visual y Axial (Vision Node)
+- **Build Shield (Build Shield Sovereignty)**: FALLIDO (Fracturas externas detectadas).
+- **Estado**: ÁMBAR (Protección del Metal completada, Axialidad comprometida por capas superiores).
 
 ---
-**Sentinel Integrity Signature:** "Security is the cost of freedom. The fortress is restored."
+**Sentinel Integrity Signature:** "The Data Layer is now a fortress. The UI must follow the Sovereign path."
