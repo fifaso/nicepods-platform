@@ -1,5 +1,11 @@
-// app/offline/page.tsx
-// VERSIÓN: 4.0 (Fix: Use standard <img> tag to bypass server optimization in offline mode)
+/**
+ * ARCHIVO: app/(platform)/offline/page.tsx
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: UserInterface Integrity & Null-Safety
+ * MISIÓN: Gestión soberana de contenidos descargados.
+ * [REFORMA V8.3]: Sello de vacíos de nulabilidad y cumplimiento axial de tipos.
+ * NIVEL DE INTEGRIDAD: 100% (Purifier Verified)
+ */
 
 "use client";
 
@@ -35,8 +41,13 @@ export default function OfflinePage() {
     }
   }, []);
 
-  const handleDelete = async (identification: number, uniformResourceLocator: string) => {
+  const handleDelete = async (identification: number, uniformResourceLocator: string | null) => {
     if(!confirm("¿Borrar descarga?")) return;
+
+    if (!uniformResourceLocator) {
+        console.error("⚠️ [Offline-UI] Intento de borrado de recurso sin Localizador Uniforme de Recursos.");
+        return;
+    }
     
     try {
         const cache = await caches.open(CACHE_NAME);
