@@ -44,7 +44,6 @@ export function transformDatabasePodcastRecordToSovereignEntity(
     }
 
     // 2. Transmutación Soberana (ZAP 2.0 Alignment) con Fallbacks de Integridad
-    // Misión: Erradicar abreviaciones y purificar la verdad de la base de datos.
     return {
         // --- IDENTIDAD SOBERANA (ZAP 2.0) ---
         identification: rawDatabaseRecord.id,

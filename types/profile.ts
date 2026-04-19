@@ -1,14 +1,13 @@
 /**
  * ARCHIVE: types/profile.ts
- * VERSION: 4.2 (NicePod Sovereign Profile - Strict Metal-to-Crystal Contract Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * VERSION: 8.3 (NicePod Sovereign Profile - Strict Metal-to-Crystal Contract Edition)
+ * PROTOCOLO: MADRID RESONANCE V8.3
  * 
  * MISSION: Centralizar el contrato de identidad del Voyager, garantizando la
  * integridad de tipos entre el Metal (Base de Datos) y el Cristal (Interfaz).
- * [REFORMA V4.1]: Implementación de 'id' como propiedad de respaldo necesaria para 
- * la compatibilidad con el SDK de Supabase, manteniendo 'identification' como 
- * descriptor industrial soberano.
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * [REFORMA V8.3]: Purificación absoluta de identidad. Se elimina el fallback 'id'
+ * para forzar el cumplimiento de la Doctrina de Soberanía Nominal (ZAP 2.0).
+ * INTEGRITY LEVEL: 100% (Soberano / ZAP 2.0 / Producción-Ready)
  */
 
 import { Database } from './database.types';
@@ -35,15 +34,10 @@ export type UserRole = 'user' | 'admin' | 'curator';
 
 /**
  * ProfileData: La fuente de verdad sobre la identidad de un Voyager.
- * 
- * [SINCRO V4.1]: Se añade 'id' como propiedad opcional para asegurar la 
- * compatibilidad nativa con la respuesta del cliente de Supabase (Metal).
  */
 export interface ProfileData {
   /** identification: Identificador unívoco del perfil (ZAP). */
   identification: string;
-  /** id: Fallback necesario para la compatibilidad con la capa de persistencia (Supabase). */
-  id?: string;
   username: string;
   fullName: string | null;
   avatarUniformResourceLocator: string | null;
@@ -144,21 +138,18 @@ export type ProfileTabValue =
   | 'offline'
   | 'admin_vault';
 
-export interface ProfileActionResponse<T = unknown> {
+export interface ProfileActionResponse<PayloadDataType = unknown> {
   isOperationSuccessful: boolean;
   responseStatusMessage: string;
-  payloadData?: T;
+  payloadData?: PayloadDataType;
   validationErrorMessageMap?: Record<string, string[]>;
   traceIdentification: string;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.1):
- * 1. Metadata Hardening: La inclusión de 'id?' en la interfaz permite que 
- *    nuestros selectores de Supabase fluyan sin necesidad de ser casteados 
- *    a 'any', cumpliendo el protocolo Build Shield (BSS).
- * 2. ZAP Compliance: Purificación total. Se han eliminado todas las abreviaturas 
+ * NOTA TÉCNICA DEL ARCHITECT (V8.3):
+ * 1. ZAP 2.0 Compliance: Purificación total. Se han eliminado todas las abreviaturas
  *    en los tipos, incluyendo estados, enums y payloads de acciones.
- * 3. Contractual Symmetry: Esta interfaz ahora es 100% compatible con los 
- *    componentes que consumen la data purificada del perfil.
+ * 2. Contractual Symmetry: Esta interfaz ahora es 100% compatible con los
+ *    componentes que consumen la data purificada del perfil sin alias heredados.
  */
