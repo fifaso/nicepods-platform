@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 24.0
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * VERSIÓN: 25.0
+ * PROTOCOLO: MADRID RESONANCE V8.0
  * MISIÓN: Reactor WebGL inmutable que gestiona la renderización de la malla 3D con aniquilación atómica.
- * [THERMIC V1.0]: Refuerzo de la Zero Abbreviations Policy (ZAP) y aniquilación de VRAM.
+ * [THERMIC V2.0]: Refuerzo de la Zero Abbreviations Policy (ZAP) y purificación de identificadores industriales.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  * 
  * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D. 
@@ -156,15 +156,17 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
             const opacityMagnitude = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
             nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', opacityMagnitude);
         }
-        if (!nativeMapInstance.getSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id)) {
-            nativeMapInstance.addSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, {
+
+        const elevationSourceIdentification = DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id;
+        if (!nativeMapInstance.getSource(elevationSourceIdentification)) {
+            nativeMapInstance.addSource(elevationSourceIdentification, {
                 type: "raster-dem",
                 url: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.url,
                 tileSize: 512
             });
         }
         if (mode === 'EXPLORE' && !isSatellitePerspectiveActive) {
-            nativeMapInstance.setTerrain({ source: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, exaggeration: 1.15 });
+            nativeMapInstance.setTerrain({ source: elevationSourceIdentification, exaggeration: 1.15 });
         } else {
             nativeMapInstance.setTerrain(null);
         }

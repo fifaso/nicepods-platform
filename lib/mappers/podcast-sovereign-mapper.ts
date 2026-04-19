@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: lib/mappers/podcast-sovereign-mapper.ts
- * VERSIÓN: 8.2 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: METAL-TO-CRYSTAL DATA PURIFICATION
  * MISIÓN: Capa de Aislamiento de Soberanía para la Entidad Podcast.
- * [REFORMA V8.2]: Implementación de transmutación pura y validaciones de respaldo.
- * NIVEL DE INTEGRIDAD: 100% (Strategist Verified)
+ * [REFORMA V8.3]: Erradicación total de alias legados y campos snake_case.
+ * NIVEL DE INTEGRIDAD: 100% (Purifier Verified)
  */
 
 import {
@@ -44,7 +44,6 @@ export function transformDatabasePodcastRecordToSovereignEntity(
     }
 
     // 2. Transmutación Soberana (ZAP 2.0 Alignment) con Fallbacks de Integridad
-    // Misión: Erradicar abreviaciones y purificar la verdad de la base de datos.
     return {
         // --- IDENTIDAD SOBERANA (ZAP 2.0) ---
         identification: rawDatabaseRecord.id,
@@ -107,8 +106,7 @@ export function transformDatabasePodcastRecordToSovereignEntity(
             username: rawDatabaseRecord.profiles.username || "anonimo",
             reputationScoreValue: rawDatabaseRecord.profiles.reputation_score ?? 0,
             isVerifiedAccountStatus: rawDatabaseRecord.profiles.is_verified ?? false,
-            authorityRole: rawDatabaseRecord.profiles.role || "user",
-        } : null,
-
-    } as unknown as PodcastWithProfile;
+            authorityRole: rawDatabaseRecord.profiles.role || "user"
+        } : null
+    };
 }

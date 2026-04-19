@@ -1,5 +1,10 @@
-// components/admin/manual-ingestion-modal.tsx
-// VERSIÓN: 4.0 (Madrid Resonance Protocol V4.0)
+/**
+ * ARCHIVO: components/admin/manual-ingestion-modal.tsx
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Madrid Resonance Protocol V8.3
+ * MISIÓN: Inyectar conocimiento curado directamente en el Knowledge Vault de NicePod.
+ * NIVEL DE INTEGRIDAD: 100% (Strategist Verified)
+ */
 
 "use client";
 
@@ -33,7 +38,11 @@ export function ManualIngestionModal({ isOpen, onClose }: { isOpen: boolean, onC
 
         startTransitionSovereignty(async () => {
             try {
-                const administrativeResponse = await injectManualKnowledge(knowledgeInjectionForm);
+                const administrativeResponse = await injectManualKnowledge({
+                    titleTextContent: knowledgeInjectionForm.title,
+                    textBodyContent: knowledgeInjectionForm.text,
+                    uniformResourceLocator: knowledgeInjectionForm.uniformResourceLocator
+                });
                 if (administrativeResponse.success) {
                     toast.success("Conocimiento inyectado exitosamente.");
                     setKnowledgeInjectionForm({ title: "", text: "", uniformResourceLocator: "" });
