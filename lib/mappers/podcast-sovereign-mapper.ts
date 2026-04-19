@@ -27,6 +27,17 @@ import { nicepodLog } from "@/lib/utils";
  * Aplica la Doctrina de Soberanía Nominal (ZAP 2.0) y garantiza integridad
  * mediante validaciones de respaldo (fallbacks).
  *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Actuar como un cortafuegos nominal entre el esquema físico de PostgreSQL (snake_case)
+ * y el dominio de la interfaz de usuario (camelCase Soberano). Esto permite
+ * evolucionar la base de datos sin fracturar la lógica de presentación.
+ *
+ * GESTIÓN DE NULABILIDAD (RESILIENCIA):
+ * - Identificadores: Se asignan valores "SYSTEM_ORPHAN" o null para evitar colapsos en la navegación.
+ * - Textos: Fallbacks a cadenas descriptivas (ej. "Crónica Sin Título") para asegurar legibilidad.
+ * - Colecciones: Inicialización como arrays vacíos [] para prevenir errores de iteración (.map).
+ * - Booleanos: Coerción explícita a false mediante el operador de coalescencia nula.
+ *
  * @param rawDatabaseRecord Registro crudo proveniente de la tabla 'micro_pods'.
  * @returns Entidad Podcast purificada y soberana lista para el consumo.
  */
@@ -81,8 +92,8 @@ export function transformDatabasePodcastRecordToSovereignEntity(
 
         // --- DOSSIERS DE INTELIGENCIA (CRISTAL - BSS) ---
         creationMetadataDossier: rawDatabaseRecord.creation_data as unknown as CreationMetadataPayload,
-        intelligenceSourcesCollection: rawDatabaseRecord.sources as unknown as ResearchSource[],
-        podcastScriptDossier: rawDatabaseRecord.script_text as unknown as PodcastScript,
+        intelligenceSourcesCollection: (rawDatabaseRecord.sources as unknown as ResearchSource[]) || [],
+        podcastScriptDossier: (rawDatabaseRecord.script_text as unknown as PodcastScript) || null,
         artificialIntelligenceTagsCollection: rawDatabaseRecord.ai_tags || [],
         userDefinedTagsCollection: rawDatabaseRecord.user_tags || [],
         artificialIntelligenceSummaryContent: rawDatabaseRecord.ai_summary || null,
@@ -91,7 +102,7 @@ export function transformDatabasePodcastRecordToSovereignEntity(
 
         // --- EXTENSIONES GEODÉSICAS ---
         placeNameReference: rawDatabaseRecord.place_name || null,
-        geographicLocationPoint: rawDatabaseRecord.geo_location as unknown as GeoLocation,
+        geographicLocationPoint: (rawDatabaseRecord.geo_location as unknown as GeoLocation) || null,
         quoteContextReference: rawDatabaseRecord.quote_context || null,
         quoteTimestampMagnitude: rawDatabaseRecord.quote_timestamp ? Number(rawDatabaseRecord.quote_timestamp) : null,
 

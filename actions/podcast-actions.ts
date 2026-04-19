@@ -16,8 +16,14 @@ import { nicepodLog } from "@/lib/utils";
 import { transformDatabasePodcastRecordToSovereignEntity } from "@/lib/mappers/podcast-sovereign-mapper";
 
 /**
- * getPublishedPodcastsAction:
- * Misión: Recuperar las crónicas públicas de la malla con transformación soberana.
+ * getPublishedPodcastsAction
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Recuperar las crónicas públicas de la malla global mediante transformación soberana.
+ * Implementa el Traceability Protocol para auditar el volumen de datos procesados.
+ *
+ * @param resultLimitMagnitude Cantidad máxima de crónicas a recuperar.
+ * @returns Colección de crónicas purificadas para el Crystal.
  */
 export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 50): Promise<PodcastWithProfile[]> {
   const supabaseSovereignClient = createClient();
@@ -32,8 +38,8 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
 
     if (queryHardwareExceptionInformation) {
       nicepodLog(
-        "🔥 [Podcast-Action-Error][GetPublished]: Excepción de Hardware en Consulta.",
-        { exceptionMessageInformationText: queryHardwareExceptionInformation.message },
+        "🔥 [Podcast-Action-Error][GetPublished]: Excepción de Hardware en Consulta de Red.",
+        { exceptionInformationText: queryHardwareExceptionInformation.message },
         'exceptionInformation'
       );
       throw queryHardwareExceptionInformation;
@@ -49,9 +55,9 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
       transformDatabasePodcastRecordToSovereignEntity(podcastItemSnapshot)
     );
 
-  } catch (exceptionMessageInformation: unknown) {
-    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]:", exceptionMessageInformationText, 'exceptionInformation');
+  } catch (exceptionInformation: unknown) {
+    const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]: Colapso en el pipeline de recuperación.", { exceptionInformationText }, 'exceptionInformation');
     return [];
   }
 }
@@ -82,8 +88,8 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
 
     if (queryHardwareExceptionInformation) {
        nicepodLog(
-        "🔥 [Podcast-Action-Error][GetUser]: Excepción de Hardware en Consulta de Inventario.",
-        { exceptionMessageInformationText: queryHardwareExceptionInformation.message },
+        "🔥 [Podcast-Action-Error][GetUser]: Excepción de Hardware en Consulta de Inventario Personal.",
+        { exceptionInformationText: queryHardwareExceptionInformation.message },
         'exceptionInformation'
       );
       throw queryHardwareExceptionInformation;
@@ -99,9 +105,9 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
       transformDatabasePodcastRecordToSovereignEntity(podcastItemSnapshot)
     );
 
-  } catch (exceptionMessageInformation: unknown) {
-    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", exceptionMessageInformationText, 'exceptionInformation');
+  } catch (exceptionInformation: unknown) {
+    const exceptionInformationText = exceptionInformation instanceof Error ? exceptionInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]: Colapso en la recuperación de inventario personal.", { exceptionInformationText }, 'exceptionInformation');
     return [];
   }
 }

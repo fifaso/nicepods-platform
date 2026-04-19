@@ -69,7 +69,10 @@ export type VaultActionResponse<PayloadDataType = null> = {
 
 /**
  * PROTOCOLO: ensureAdminAuthority
- * Misión: Validar que la petición proviene de un nodo con privilegios administrativos.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Implementar una barrera de seguridad de "Confianza Cero" (Zero Trust) para acciones administrativas.
+ * Verifica la identidad del usuario y su rol de 'admin' en el Metal antes de permitir cualquier mutación.
  */
 async function ensureAdminAuthority() {
     const supabaseSovereignClient = createClient();
@@ -140,7 +143,9 @@ export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowl
 
 /**
  * FUNCIÓN: deleteVaultSource
- * Misión: Purga física y lógica de una fuente de conocimiento y sus vectores asociados.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Ejecutar la eliminación atómica de una fuente y sus vectores de conocimiento asociados.
  */
 export async function deleteVaultSource(sourceIdentification: string): Promise<VaultActionResponse> {
     try {
@@ -153,6 +158,7 @@ export async function deleteVaultSource(sourceIdentification: string): Promise<V
 
         if (databaseDeleteHardwareExceptionInformation) throw databaseDeleteHardwareExceptionInformation;
 
+        nicepodLog("🗑️ [Vault-Action][Delete-Source]: Fuente eliminada correctamente.", { sourceIdentification });
         revalidatePath("/admin/vault");
 
         nicepodLog("🗑️ [Vault-Action][Delete-Source]: Fuente purgada de la Bóveda.", { sourceIdentification });
@@ -178,7 +184,9 @@ export async function deleteVaultSource(sourceIdentification: string): Promise<V
 
 /**
  * FUNCIÓN: injectManualKnowledge
- * Misión: Inyección de inteligencia curada manualmente por el administrador.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Permitir la inyección de inteligencia curada por humanos en el pipeline de vectorización.
  */
 export async function injectManualKnowledge(knowledgeInjectionPayloadSnapshot: {
     titleTextContent: string;
@@ -200,6 +208,7 @@ export async function injectManualKnowledge(knowledgeInjectionPayloadSnapshot: {
 
         if (edgeFunctionInvokeHardwareExceptionInformation) throw new Error(edgeFunctionInvokeHardwareExceptionInformation.message || "Error en el pipeline de refinería.");
 
+        nicepodLog("🧪 [Vault-Action][Inject-Knowledge]: Inyección manual procesada por Refinería.");
         revalidatePath("/admin/vault");
 
         nicepodLog("💉 [Vault-Action][Inject-Knowledge]: Inteligencia inyectada exitosamente.", { titleTextContent: knowledgeInjectionPayloadSnapshot.titleTextContent });
@@ -225,7 +234,9 @@ export async function injectManualKnowledge(knowledgeInjectionPayloadSnapshot: {
 
 /**
  * FUNCIÓN: simulateVaultSearch
- * Misión: Laboratorio de Resonancia Semántica.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Proporcionar una terminal de prueba para validar la relevancia semántica de los vectores almacenados.
  */
 export async function simulateVaultSearch(
     searchQueryTerm: string,
@@ -273,7 +284,9 @@ export async function simulateVaultSearch(
 
 /**
  * FUNCIÓN: getVaultMetrics
- * Misión: Telemetría de densidad informativa de NicePod.
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Monitorear la densidad informativa y el volumen de fragmentos de conocimiento en el NKV.
  */
 export async function getVaultMetrics(): Promise<VaultActionResponse<{
     totalSourcesCountMagnitude: number;

@@ -24,24 +24,35 @@ import {
 } from '@/types/profile';
 
 /**
- * [METADATA API]: Identidad de Visualización Técnica
+ * [METADATA API]: Identidad de Visualización Técnica y Optimización de Motores de Búsqueda.
  */
 export const metadata: Metadata = {
   title: "Búnker de Sabiduría | NicePod Intelligence",
-  description: "Centro de mandos operativo y gestión de soberanía de datos personales.",
+  description: "Centro de mandos operativo y gestión de soberanía de datos personales para el Voyager de NicePod.",
+  keywords: ["Privacidad", "Soberanía de Datos", "Búnker de Inteligencia", "NicePod Profile"],
   robots: { index: false, follow: false },
 };
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+/**
+ * PrivateProfileRoute
+ *
+ * INTENCIÓN ARQUITECTÓNICA:
+ * Implementar el "Bunker Hydration Protocol". Consiste en la recolección exhaustiva
+ * de la huella digital del usuario (Colecciones, Testimonios, Métricas y Bóveda)
+ * asegurando que la UI refleje la verdad del Metal con latencia mínima.
+ *
+ * COMPLEJIDAD: O(N) concurrente sobre múltiples entidades del esquema 'public'.
+ */
 export default async function PrivateProfileRoute() {
   const supabaseSovereignClient = createClient();
 
   // 1. HANDSHAKE DE IDENTIDAD
-  const { data: { user: authenticatedUser }, error: authenticationHardwareException } = await supabaseSovereignClient.auth.getUser();
+  const { data: { user: authenticatedUser }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
 
-  if (authenticationHardwareException || !authenticatedUser) {
+  if (authenticationHardwareExceptionInformation || !authenticatedUser) {
     redirect('/login?redirect=/profile');
   }
 
@@ -56,7 +67,7 @@ export default async function PrivateProfileRoute() {
   });
   await posthogSovereignClient.shutdown();
 
-  // 2. COSECHA PARALELA DE INTELIGENCIA
+  // 2. COSECHA PARALELA DE INTELIGENCIA (Hydration Pipeline)
   const [
     profileQueryResponse,
     usageMetricsQueryResponse,
@@ -97,7 +108,7 @@ export default async function PrivateProfileRoute() {
   ]);
 
   if (profileQueryResponse.error) {
-    console.error("🔥 [Bunker-Error]:", profileQueryResponse.error.message);
+    nicepodLog("🔥 [Bunker-Error]: Fallo crítico en acceso al perfil del Metal.", { exceptionInformationText: profileQueryResponse.error.message }, 'exceptionInformation');
     redirect('/login');
   }
 
@@ -148,13 +159,6 @@ export default async function PrivateProfileRoute() {
         key={profileDataSnapshot.identification}
         profile={profileDataSnapshot}
         podcastsCreatedThisMonth={usageMetricsQueryResponse.data?.podcasts_created_this_month || 0}
-        
-        /**
-         * [SINCRO V19.0]: Los nombres inyectados aquí DEBEN ser exactamente los 
-         * declarados en PrivateProfileDashboardComponentProperties (V6.1).
-         * Si el componente hijo espera 'initialTestimonialsCollection', enviamos 
-         * 'initialTestimonialsCollection'.
-         */
         initialTestimonialsCollection={testimonialsModerationQueryResponse.data as TestimonialWithAuthor[] || []}
         initialCollectionsCollection={purifiedCollectionsCollection}
         finishedPodcastsCollection={uniqueFinishedPodcastsCollection}
@@ -162,11 +166,3 @@ export default async function PrivateProfileRoute() {
     </main>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V19.0):
- * 1. Contract Alignment: La resolución del error TS2322 requiere que el padre (page.tsx) 
- *    y el hijo (private-profile-dashboard.tsx) utilicen la misma nomenclatura industrial. 
- *    Se han alineado las propiedades de inyección.
- * 2. ZAP Absolute Compliance: El código respeta al 100% la Zero Abbreviations Policy.
- */
