@@ -1,13 +1,9 @@
-
-// components/admin/resonance-simulator.tsx
-// VERSIÓN: 4.1 (Madrid Resonance Protocol V4.0)
-
 /**
  * ARCHIVO: components/admin/resonance-simulator.tsx
- * VERSIÓN: 4.1 (Madrid Resonance)
- * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Madrid Resonance Protocol V8.3
  * MISIÓN: Laboratorio de pruebas para la inteligencia semántica de NicePod.
- * NIVEL DE INTEGRIDAD: HIGH
+ * NIVEL DE INTEGRIDAD: 100% (Strategist Verified)
  */
 
 "use client";
@@ -58,14 +54,14 @@ export function ResonanceSimulator() {
             const administrativeResponse = await simulateVaultSearch(searchQueryTerm, similarityThreshold[0]);
 
             if (administrativeResponse.success) {
-                const semanticNodesInventory: SemanticResonanceNode[] = administrativeResponse.data || [];
+                const semanticNodesInventory: SemanticResonanceNode[] = administrativeResponse.dataPayload || [];
                 setSemanticResultsInventory(semanticNodesInventory);
                 
                 if (semanticNodesInventory.length === 0) {
                     setSimulationExceptionMessage("No se encontraron hechos atómicos que superen el umbral de similitud.");
                 }
             } else {
-                setSimulationExceptionMessage(administrativeResponse.exceptionInformationText || administrativeResponse.message || "Fallo en la calibración del radar.");
+                setSimulationExceptionMessage(administrativeResponse.exceptionInformation || administrativeResponse.message || "Fallo en la calibración del radar.");
             }
         } catch (vaultException: unknown) {
             const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
@@ -79,9 +75,9 @@ export function ResonanceSimulator() {
     /**
      * getSimilarityColorDescriptor: Termómetro Visual de Precisión.
      */
-    const getSimilarityColorDescriptor = (similarityScore: number) => {
-        if (similarityScore >= 0.85) return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
-        if (similarityScore >= 0.70) return "text-primary bg-primary/10 border-primary/20";
+    const getSimilarityColorDescriptor = (similarityMagnitude: number) => {
+        if (similarityMagnitude >= 0.85) return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+        if (similarityMagnitude >= 0.70) return "text-primary bg-primary/10 border-primary/20";
         return "text-amber-400 bg-amber-400/10 border-amber-400/20";
     };
 
@@ -197,17 +193,17 @@ export function ResonanceSimulator() {
                                         </p>
                                         
                                         {/* Insignia de Precisión Vectorial */}
-                                        <div className={`shrink-0 px-2 py-1 border rounded-md flex items-center gap-1 ${getSimilarityColorDescriptor(result.similarity)}`}>
+                                        <div className={`shrink-0 px-2 py-1 border rounded-md flex items-center gap-1 ${getSimilarityColorDescriptor(result.similarityMagnitude)}`}>
                                             <Target size={10} />
                                             <span className="font-mono font-bold text-[10px]">
-                                                {result.similarity.toFixed(3)}
+                                                {result.similarityMagnitude.toFixed(3)}
                                             </span>
                                         </div>
                                     </div>
                                     
                                     <div className="flex items-center gap-2 opacity-50">
                                         <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
-                                            Origen: {result.title || "Dato Atómico"}
+                                            Origen: {result.titleTextContent || "Dato Atómico"}
                                         </span>
                                     </div>
                                 </div>

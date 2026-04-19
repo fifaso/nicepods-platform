@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 14.0
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * VERSIÓN: 15.0
+ * PROTOCOLO: MADRID RESONANCE V8.0
  * MISIÓN: Orquestar la lente WebGL con aislamiento térmico y captura de referencias.
- * [THERMIC V1.0]: Sincronización nominal ZAP y captura de referencias para aniquilación de cuadros.
+ * [THERMIC V2.0]: Sincronización nominal ZAP avanzada y blindaje de la Page Visibility API.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
@@ -122,7 +122,10 @@ export function CameraController({
     // SINCRONIZACIÓN EN MODO MANUAL
     if (isUserInteractingReference.current || nativeMapInstance.isMoving()) {
       const mapCenterPointSnapshot = nativeMapInstance.getCenter();
-      currentCameraPositionReference.current = { latitude: mapCenterPointSnapshot.lat, longitude: mapCenterPointSnapshot.lng };
+      currentCameraPositionReference.current = {
+        latitude: mapCenterPointSnapshot.lat,
+        longitude: mapCenterPointSnapshot.lng
+      };
       currentBearingReference.current = nativeMapInstance.getBearing();
       currentPitchReference.current = nativeMapInstance.getPitch();
       currentZoomReference.current = nativeMapInstance.getZoom();
@@ -189,8 +192,14 @@ export function CameraController({
 
       const currentCameraCenterPoint = nativeMapInstance.getCenter();
       const distanceToTargetMagnitude = calculateDistanceBetweenPoints(
-        { latitude: currentCameraCenterPoint.lat, longitude: currentCameraCenterPoint.lng },
-        { latitude: voyagerGeographicLocation.latitudeCoordinate, longitude: voyagerGeographicLocation.longitudeCoordinate }
+        {
+          latitude: currentCameraCenterPoint.lat,
+          longitude: currentCameraCenterPoint.lng
+        },
+        {
+          latitude: voyagerGeographicLocation.latitudeCoordinate,
+          longitude: voyagerGeographicLocation.longitudeCoordinate
+        }
       );
 
       if (distanceToTargetMagnitude > 500) {
@@ -222,12 +231,21 @@ export function CameraController({
     nativeMapCanvas.addEventListener('wheel', handleManualInteractionAction, { passive: true });
 
     return () => {
+      // PROTOCOLO DE CAPTURA DE REFERENCIA MUTABLE (MRCP)
       const currentAnimationFrameIdentificationSnapshot = animationFrameIdentificationReference.current;
+      const nativeMapCanvasSnapshot = nativeMapCanvas;
+
       visibilityObserver.disconnect();
-      if (currentAnimationFrameIdentificationSnapshot) cancelAnimationFrame(currentAnimationFrameIdentificationSnapshot);
-      nativeMapCanvas.removeEventListener('mousedown', handleManualInteractionAction);
-      nativeMapCanvas.removeEventListener('touchstart', handleManualInteractionAction);
-      nativeMapCanvas.removeEventListener('wheel', handleManualInteractionAction);
+
+      if (currentAnimationFrameIdentificationSnapshot) {
+        cancelAnimationFrame(currentAnimationFrameIdentificationSnapshot);
+      }
+
+      if (nativeMapCanvasSnapshot) {
+        nativeMapCanvasSnapshot.removeEventListener('mousedown', handleManualInteractionAction);
+        nativeMapCanvasSnapshot.removeEventListener('touchstart', handleManualInteractionAction);
+        nativeMapCanvasSnapshot.removeEventListener('wheel', handleManualInteractionAction);
+      }
     };
   }, [mapboxMapInstance, executeKinematicPhysicsLoop, handleManualInteractionAction]);
 

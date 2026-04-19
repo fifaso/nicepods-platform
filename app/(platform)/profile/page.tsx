@@ -1,12 +1,9 @@
 /**
  * ARCHIVO: app/(platform)/profile/page.tsx
  * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
- * PROTOCOLO: MADRID RESONANCE V8.3
- * 
- * MISIÓN: Orquestar la hidratación de datos del Búnker de Sabiduría (NKV),
- * garantizando la coherencia absoluta entre el Metal y el Cristal.
- * [REFORMA V8.3]: Consolidación de Metadatos soberanos y documentación de "Bunker Hydration Protocol".
- * NIVEL DE INTEGRIDAD: 100% (Scribe Verified)
+ * PROTOCOLO: Madrid Resonance Protocol V8.3
+ * MISIÓN: Orquestar la hidratación de datos del Búnker de Sabiduría (NicePodKnowledgeVault), garantizando la coherencia absoluta entre el Metal y el Cristal.
+ * NIVEL DE INTEGRIDAD: 100% (Strategist Verified)
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -159,7 +156,7 @@ export default async function PrivateProfileRoute() {
   return (
     <main className="min-h-screen bg-transparent animate-in fade-in duration-1000">
       <PrivateProfileDashboard
-        key={profileDataSnapshot.identification || (profileDataSnapshot as any).id}
+        key={profileDataSnapshot.identification}
         profile={profileDataSnapshot}
         podcastsCreatedThisMonth={usageMetricsQueryResponse.data?.podcasts_created_this_month || 0}
         initialTestimonialsCollection={testimonialsModerationQueryResponse.data as TestimonialWithAuthor[] || []}

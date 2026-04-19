@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: hooks/geo-engine/use-kinetic-avatar-projection.ts
- * VERSIÓN: 2.2
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * VERSIÓN: 3.0
+ * PROTOCOLO: MADRID RESONANCE V8.0
  * MISIÓN: Orquestar el bucle de animación cinemática con captura de referencias y cumplimiento ZAP.
- * [THERMIC V1.0]: Implementación de MRCP para aniquilación de cuadros de animación.
+ * [THERMIC V2.0]: Reforzamiento del MRCP y blindaje absoluto de la Page Visibility API.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
@@ -142,9 +142,16 @@ export function useKineticAvatarProjection({
      * [HARDWARE HYGIENE]: Purga atómica de procesos al desmontar.
      */
     return () => {
+      // PROTOCOLO DE CAPTURA DE REFERENCIA MUTABLE (MRCP)
       const currentAnimationFrameIdentificationSnapshot = animationFrameIdentificationReference.current;
+      const kineticSignalBusSnapshot = kineticSignalBus;
+
       nicepodLog("🔋 [KineticMotor] Liberando recursos de animación y bus de eventos.");
-      kineticSignalBus.removeEventListener(GEODETIC_KINETIC_SIGNAL_EVENT_NAME, handleIncomingKineticPulse);
+
+      if (kineticSignalBusSnapshot) {
+        kineticSignalBusSnapshot.removeEventListener(GEODETIC_KINETIC_SIGNAL_EVENT_NAME, handleIncomingKineticPulse);
+      }
+
       if (currentAnimationFrameIdentificationSnapshot) {
         cancelAnimationFrame(currentAnimationFrameIdentificationSnapshot);
       }
