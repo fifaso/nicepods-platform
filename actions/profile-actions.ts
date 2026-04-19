@@ -19,7 +19,7 @@ import { nicepodLog } from "@/lib/utils";
 import { transformDatabaseProfileToSovereignEntity } from "@/lib/mappers/profile-sovereign-mapper";
 
 /**
- * updateProfile: Misión: Actualizar los metadatos del curador en la Bóveda de NicePod.
+ * updateProfile: Misión: Actualizar los metadatos del curador en la Bóveda de NicePod con validación estricta.
  */
 export async function updateProfile(
   updatePayloadSnapshot: ProfileUpdatePayload
@@ -103,7 +103,7 @@ export async function updateProfile(
 }
 
 /**
- * getProfileByUsername: Recuperar la ficha técnica pública de un curador basada en su handle.
+ * getProfileByUsername: Recuperar la ficha técnica pública de un curador basada en su handle nominal.
  */
 export async function getProfileByUsername(targetUsernameIdentification: string): Promise<ProfileData | null> {
   const supabaseSovereignClient = createClient();
@@ -153,3 +153,12 @@ export async function getProfileById(authenticatedUserIdentification: string): P
     return null;
   }
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V8.3):
+ * 1. Zero Abbreviation Policy: Purificación absoluta de variables (updatePayloadSnapshot,
+ *    validationResultDossier, queryDatabaseHardwareExceptionInformation).
+ * 2. Seguridad contra Nulos: Se ha reforzado el manejo defensivo en getProfileById y en el Handshake
+ *    de actualización.
+ * 3. Integridad Axial: Sincronizado con el contrato de tipos de la base de datos (BSS Green).
+ */
