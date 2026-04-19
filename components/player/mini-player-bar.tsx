@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/player/mini-player-bar.tsx
- * VERSIÓN: 9.1 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 10.0 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: Thermal Isolation & MRCP
  *
- * MISIÓN: Proveer control persistente y eficiente mediante Direct-DOM y ZAP.
- * [REFORMA 9.1]: Implementación de Mutable Reference Capture Protocol (MRCP).
+ * MISIÓN: Proveer control persistente y eficiente mediante Direct-DocumentObjectModel y ZAP.
+ * [REFORMA 10.0]: Sincronización nominal ZAP absoluta y consolidación de MRCP.
  *
  * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V8.0)
  */
@@ -25,7 +25,7 @@ import { cn, formatTime, getSafeAsset, nicepodLog } from "@/lib/utils";
 
 /**
  * COMPONENTE: MiniPlayerBar
- * La UserInterface de mando compacta para la red de Madrid Resonance.
+ * La Interfaz de Usuario (UserInterface) de mando compacta para la red de Madrid Resonance.
  */
 export function MiniPlayerBar() {
   const {
@@ -44,56 +44,63 @@ export function MiniPlayerBar() {
   const currentTimeDisplayElementReference = useRef<HTMLSpanElement>(null);
   const totalDurationDisplayElementReference = useRef<HTMLSpanElement>(null);
 
-  const lastTotalDurationSecondsReference = useRef<number>(0);
+  const lastTotalDurationSecondsMagnitudeReference = useRef<number>(0);
 
   /**
-   * 1. MOTOR DE SINCRO DIRECT-DocumentObjectModel
+   * 1. MOTOR DE SINCRONIZACIÓN DIRECTA AL MODELO DE OBJETOS DEL DOCUMENTO (Direct-DocumentObjectModel)
    */
   useEffect(() => {
     // [MutableReferenceCaptureProtocol]: Captura local de la referencia mutable para integridad en el desmontaje
-    const capturedAudioElementInstance = audioElementReference.current;
-    if (!capturedAudioElementInstance) return;
+    const capturedAudioElementInstanceSnapshot = audioElementReference.current;
+    if (!capturedAudioElementInstanceSnapshot) return;
 
-    const syncMetricsAction = () => {
+    const synchronizeMetricsAction = () => {
+      // Background Thermal Isolation: Evitar cálculos si el documento está oculto
       if (document.hidden) return;
 
-      const currentPlaybackTimeSeconds = capturedAudioElementInstance.currentTime;
-      const totalAudioDurationSeconds = capturedAudioElementInstance.duration || 0;
+      const currentPlaybackTimeSecondsMagnitude = capturedAudioElementInstanceSnapshot.currentTime;
+      const totalAudioDurationSecondsMagnitude = capturedAudioElementInstanceSnapshot.duration || 0;
 
-      if (progressBarElementReference.current && totalAudioDurationSeconds > 0) {
-        const progressPercentageMagnitude = (currentPlaybackTimeSeconds / totalAudioDurationSeconds);
+      if (progressBarElementReference.current && totalAudioDurationSecondsMagnitude > 0) {
+        const progressPercentageMagnitude = (currentPlaybackTimeSecondsMagnitude / totalAudioDurationSecondsMagnitude);
+        // Hardware Annihilation Protocol: Uso de transform para evitar reflows de diseño (layout)
         progressBarElementReference.current.style.transform = `scaleX(${progressPercentageMagnitude})`;
       }
 
       if (currentTimeDisplayElementReference.current) {
-        currentTimeDisplayElementReference.current.textContent = formatTime(currentPlaybackTimeSeconds);
+        currentTimeDisplayElementReference.current.textContent = formatTime(currentPlaybackTimeSecondsMagnitude);
       }
 
-      if (totalAudioDurationSeconds > 0 && totalAudioDurationSeconds !== lastTotalDurationSecondsReference.current) {
-        lastTotalDurationSecondsReference.current = totalAudioDurationSeconds;
+      if (totalAudioDurationSecondsMagnitude > 0 && totalAudioDurationSecondsMagnitude !== lastTotalDurationSecondsMagnitudeReference.current) {
+        lastTotalDurationSecondsMagnitudeReference.current = totalAudioDurationSecondsMagnitude;
         if (totalDurationDisplayElementReference.current) {
-          totalDurationDisplayElementReference.current.textContent = formatTime(totalAudioDurationSeconds);
+          totalDurationDisplayElementReference.current.textContent = formatTime(totalAudioDurationSecondsMagnitude);
         }
       }
     };
 
-    capturedAudioElementInstance.addEventListener('timeupdate', syncMetricsAction);
+    capturedAudioElementInstanceSnapshot.addEventListener('timeupdate', synchronizeMetricsAction);
 
     return () => {
-      if (capturedAudioElementInstance) {
-        capturedAudioElementInstance.removeEventListener('timeupdate', syncMetricsAction);
+      // Protocolo de Limpieza de Hardware Atómica
+      if (capturedAudioElementInstanceSnapshot) {
+        capturedAudioElementInstanceSnapshot.removeEventListener('timeupdate', synchronizeMetricsAction);
       }
     };
   }, [audioElementReference]);
 
   /**
-   * 2. VALIDACIÓN DE INTEGRIDAD
+   * 2. VALIDACIÓN DE INTEGRIDAD DE ACTIVO
    */
   const isPodcastReadyForPlaybackStatus = useMemo(() =>
     currentActivePodcast?.intelligenceProcessingStatus === 'completed',
     [currentActivePodcast?.intelligenceProcessingStatus]
   );
 
+  /**
+   * handleInterfaceExpansionAction:
+   * Misión: Escalar la interfaz hacia el modo de inmersión total.
+   */
   const handleInterfaceExpansionAction = () => {
     if (!isPodcastReadyForPlaybackStatus) {
       toast({
@@ -108,7 +115,7 @@ export function MiniPlayerBar() {
 
   if (!currentActivePodcast) return null;
 
-  const podcastAuthorFullName = currentActivePodcast.profiles?.fullName || "Cronista NicePod";
+  const podcastAuthorFullNameText = currentActivePodcast.profiles?.fullName || "Cronista NicePod";
 
   return (
     <motion.div
@@ -120,6 +127,7 @@ export function MiniPlayerBar() {
     >
       <div className="max-w-4xl mx-auto w-full pointer-events-auto">
 
+        {/* BARRA DE PROGRESO DE ALTA FRECUENCIA (60 FramesPerSecond) */}
         <div className="mx-8 mb-[-1px] relative z-20">
           <div className="h-[2px] w-full bg-white/5 overflow-hidden rounded-full">
             <div
@@ -134,6 +142,7 @@ export function MiniPlayerBar() {
 
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
 
+          {/* ÁREA DE INFORMACIÓN DE ACTIVO */}
           <div
             className="flex items-center gap-3 md:gap-4 flex-1 min-w-0 cursor-pointer z-10"
             onClick={handleInterfaceExpansionAction}
@@ -166,7 +175,7 @@ export function MiniPlayerBar() {
                 {isPodcastReadyForPlaybackStatus ? (
                   <>
                     <p className="text-[8px] md:text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] truncate">
-                      {podcastAuthorFullName}
+                      {podcastAuthorFullNameText}
                     </p>
                     <span className="text-[8px] font-mono text-primary/60">
                       <span ref={currentTimeDisplayElementReference}>00:00</span>
@@ -183,13 +192,14 @@ export function MiniPlayerBar() {
             </div>
           </div>
 
+          {/* CONTROLES TÁCTICOS SOBERANOS */}
           <div className="flex items-center gap-1 md:gap-3 ml-2 z-10">
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  onClick={(event) => {
-                    event.stopPropagation();
+                  onClick={(mouseEvent) => {
+                    mouseEvent.stopPropagation();
                     if (isPodcastReadyForPlaybackStatus) togglePlayPauseAction();
                   }}
                   variant="ghost"
@@ -218,8 +228,8 @@ export function MiniPlayerBar() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  onClick={(event) => {
-                    event.stopPropagation();
+                  onClick={(mouseEvent) => {
+                    mouseEvent.stopPropagation();
                     terminatePodcastPlayback();
                   }}
                   variant="ghost"
