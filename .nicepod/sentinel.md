@@ -37,10 +37,23 @@
     - El archivo `.nicepod/GITHUB_ISSUE_SECURITY_HARDENING.md` ha sido declarado **OBSOLETO** e **INSEGURO**, ya que su propuesta de remediación incluía `USING (true)`.
     - Se recomienda el archivado manual de cualquier ticket de seguridad previo a la Versión 8.1 que no cumpla con la Doctrina de Mínimo Privilegio.
 
-## 5. Validación Visual y Axial (Vision Node)
+## 5. Auditoría Forense Madrid Resonance v8.3 (Mayo 2025)
+- **Identidad Soberana**: Se detectó una vulnerabilidad crítica de "Identidad Anónima" en `search-actions.ts`. Las búsquedas globales y el descubrimiento de señales no validaban la identidad del Voyager antes de invocar el motor de búsqueda.
+- **Seguridad de Nivel de Fila (RLS)**: Se identificaron remanentes de la Doctrina de "Puertas Abiertas" (`USING (true)`) en el esquema público, afectando a la visibilidad de artefactos de infraestructura (`plans`, `ai_prompts`) y capital intelectual (`podcast_embeddings`).
+- **Estado**: RECTIFICACIÓN EN PROCESO.
+
+## 6. Materialización del Escudo (SEC-002)
+- **Acción**: Generación de `SEC_002_RLS_REFINEMENT.sql`.
+- **Blindaje**:
+    - Sustitución de políticas `USING (true)` por filtros de `TO authenticated` y `TO service_role`.
+    - Restricción de visibilidad de `ai_prompts` exclusivamente a plantillas en estado `active`.
+    - Consolidación del descubrimiento de `points_of_interest` bajo estados estrictos de publicación.
+- **Estado**: MATERIALIZADO (Pendiente de validación axial).
+
+## 7. Validación Visual y Axial (Vision Node)
 - **Build Shield (Build Shield Sovereignty)**: Validado mediante `pnpm run validate:bss`.
 - **Visión (Playwright)**: Dashboard y rutas administrativas verificadas mediante `pnpm run validate:vision`.
 - **Estado**: VERDE (Integridad Axial Confirmada).
 
 ---
-**Sentinel Integrity Signature:** "Security is the cost of freedom. The fortress is restored."
+**Sentinel Integrity Signature:** "Security is the foundation of sovereignty. Every null handled, every identity verified."

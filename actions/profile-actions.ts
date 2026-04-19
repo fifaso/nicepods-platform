@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: actions/profile-actions.ts
- * VERSIÓN: 4.1 (NicePod Profile Management - Sovereign Protocol V4.1)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * MISIÓN: Gestionar las mutaciones de identidad del curador con integridad axial y nominal.
- * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Madrid Resonance Protocol V8.3
+ * MISIÓN: Gestionar las mutaciones de identidad del curador con integridad axial, nominal y seguridad contra nulos.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP 2.0 / DIS / BSS Green)
  */
 
 "use server";
@@ -15,12 +15,13 @@ import {
 } from "@/lib/validation/social-schema";
 import { revalidatePath } from "next/cache";
 import { ProfileActionResponse } from "@/types/profile";
+import { nicepodLog } from "@/lib/utils";
 
 /**
- * updateProfile: Misión: Actualizar los metadatos del curador en la Bóveda de NicePod.
+ * updateProfile: Misión: Actualizar los metadatos del curador en la Bóveda de NicePod con validación estricta.
  */
 export async function updateProfile(
-  updatePayload: ProfileUpdatePayload
+  updatePayloadSnapshot: ProfileUpdatePayload
 ): Promise<ProfileActionResponse> {
   const supabaseSovereignClient = createClient();
 
@@ -28,6 +29,7 @@ export async function updateProfile(
   const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
 
   if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
+    nicepodLog("🛑 [Profile-Action] Acceso denegado: Intento de actualización sin identidad.", null, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "SESIÓN_REQUERIDA: Sesión expirada o no autorizada. Por favor, re-inicie sesión.",
@@ -36,49 +38,51 @@ export async function updateProfile(
   }
 
   // 2. VALIDACIÓN DE INTEGRIDAD SEMÁNTICA (Zod)
-  const validationResult = ProfileUpdateSchema.safeParse(updatePayload);
+  const validationResultDossier = ProfileUpdateSchema.safeParse(updatePayloadSnapshot);
 
-  if (!validationResult.success) {
+  if (!validationResultDossier.success) {
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "ERROR_VALIDACIÓN: Los datos proporcionados no cumplen con el estándar de integridad.",
-      validationErrorMessageMap: validationResult.error.flatten().fieldErrors,
+      validationErrorMessageMap: validationResultDossier.error.flatten().fieldErrors,
       traceIdentification: "SCHEMA_FAIL"
     };
   }
 
-  const validatedProfileData = validationResult.data;
+  const validatedProfileDataInventory = validationResultDossier.data;
 
   try {
     // 3. EJECUCIÓN DE PERSISTENCIA ATÓMICA
-    const { error: updateDatabaseExceptionInformation } = await supabaseSovereignClient
+    const { error: updateDatabaseHardwareExceptionInformation } = await supabaseSovereignClient
       .from("profiles")
       .update({
-        username: validatedProfileData.username,
-        full_name: validatedProfileData.fullName,
-        bio: validatedProfileData.biographyTextContent,
-        bio_short: validatedProfileData.biographyShortSummary,
-        website_url: validatedProfileData.websiteUniformResourceLocator,
-        avatar_url: validatedProfileData.avatarUniformResourceLocator,
+        username: validatedProfileDataInventory.username,
+        full_name: validatedProfileDataInventory.fullName,
+        bio: validatedProfileDataInventory.biographyTextContent,
+        bio_short: validatedProfileDataInventory.biographyShortSummary,
+        website_url: validatedProfileDataInventory.websiteUniformResourceLocator,
+        avatar_url: validatedProfileDataInventory.avatarUniformResourceLocator,
         updated_at: new Date().toISOString(),
       })
       .eq("id", authenticatedUserSnapshot.id);
 
-    if (updateDatabaseExceptionInformation) {
-      if (updateDatabaseExceptionInformation.code === '23505') {
+    if (updateDatabaseHardwareExceptionInformation) {
+      if (updateDatabaseHardwareExceptionInformation.code === '23505') {
         return {
           isOperationSuccessful: false,
           responseStatusMessage: "DUPLICIDAD_NOMINAL: El nombre de usuario ya está reservado por otro curador.",
           traceIdentification: "DB_UNIQUE_FAIL"
         };
       }
-      throw updateDatabaseExceptionInformation;
+      throw updateDatabaseHardwareExceptionInformation;
     }
 
     // 4. PROTOCOLO DE REVALIDACIÓN DE CACHÉ
     revalidatePath("/profile");
-    revalidatePath(`/u/${validatedProfileData.username}`);
+    revalidatePath(`/u/${validatedProfileDataInventory.username}`);
     revalidatePath("/dashboard");
+
+    nicepodLog("✅ [Profile-Action] Identidad sincronizada:", { userIdentification: authenticatedUserSnapshot.id });
 
     return {
       isOperationSuccessful: true,
@@ -87,8 +91,8 @@ export async function updateProfile(
     };
 
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error("🔥 [NicePod-Profile-Action-Fatal]:", errorMessage);
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Profile-Action-Fatal][Update]:", exceptionMessageInformationText, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "ERROR_CRÍTICO: Fallo crítico en la comunicación con la base de datos.",
@@ -98,12 +102,12 @@ export async function updateProfile(
 }
 
 /**
- * getProfileByUsername: Recuperar la ficha técnica pública de un curador basada en su handle.
+ * getProfileByUsername: Recuperar la ficha técnica pública de un curador basada en su handle nominal.
  */
 export async function getProfileByUsername(targetUsernameIdentification: string) {
   const supabaseSovereignClient = createClient();
 
-  const { data: profileDatabaseRowSnapshot, error: queryDatabaseExceptionInformation } = await supabaseSovereignClient
+  const { data: profileDatabaseRowSnapshot, error: queryDatabaseHardwareExceptionInformation } = await supabaseSovereignClient
     .from('profiles')
     .select(`
       id, 
@@ -125,8 +129,8 @@ export async function getProfileByUsername(targetUsernameIdentification: string)
     .eq("username", targetUsernameIdentification)
     .single();
 
-  if (queryDatabaseExceptionInformation || !profileDatabaseRowSnapshot) {
-    console.warn(`⚠️ [NicePod-Vault] Perfil no localizado: @${targetUsernameIdentification}`);
+  if (queryDatabaseHardwareExceptionInformation || !profileDatabaseRowSnapshot) {
+    nicepodLog(`⚠️ [Profile-Action] Perfil no localizado: @${targetUsernameIdentification}`, null, 'warning');
     return null;
   }
 
@@ -150,18 +154,20 @@ export async function getProfileByUsername(targetUsernameIdentification: string)
 }
 
 /**
- * getProfileById: Recuperación directa por ID de sistema.
+ * getProfileById: Recuperación directa por identificación única de sistema.
  */
 export async function getProfileById(userIdentification: string) {
+  if (!userIdentification) return null;
+
   const supabaseSovereignClient = createClient();
 
-  const { data: profileDatabaseRowSnapshot, error: queryDatabaseExceptionInformation } = await supabaseSovereignClient
+  const { data: profileDatabaseRowSnapshot, error: queryDatabaseHardwareExceptionInformation } = await supabaseSovereignClient
     .from("profiles")
     .select("*")
     .eq("id", userIdentification)
     .single();
 
-  if (queryDatabaseExceptionInformation || !profileDatabaseRowSnapshot) return null;
+  if (queryDatabaseHardwareExceptionInformation || !profileDatabaseRowSnapshot) return null;
 
   return {
     identification: profileDatabaseRowSnapshot.id,
@@ -181,3 +187,12 @@ export async function getProfileById(userIdentification: string) {
     updateTimestamp: profileDatabaseRowSnapshot.updated_at
   };
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V8.3):
+ * 1. Zero Abbreviation Policy: Purificación absoluta de variables (updatePayloadSnapshot,
+ *    validationResultDossier, queryDatabaseHardwareExceptionInformation).
+ * 2. Seguridad contra Nulos: Se ha reforzado el manejo defensivo en getProfileById y en el Handshake
+ *    de actualización.
+ * 3. Integridad Axial: Sincronizado con el contrato de tipos de la base de datos (BSS Green).
+ */

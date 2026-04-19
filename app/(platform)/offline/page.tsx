@@ -128,7 +128,7 @@ export default function OfflinePage() {
                             <div className="flex flex-col justify-center border-l border-slate-800 pl-2 ml-1">
                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-950/20" onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDelete(pod.identification, pod.audioUniformResourceLocator);
+                                    handleDelete(pod.identification, pod.audioUniformResourceLocator || "");
                                 }}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
