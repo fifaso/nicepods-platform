@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: app/(platform)/offline/page.tsx
- * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 8.4 (Madrid Resonance - Omnisovereign Edition)
  * PROTOCOLO: UserInterface Integrity & Null-Safety
- * MISIÓN: Gestión soberana de contenidos descargados.
- * [REFORMA V8.3]: Sello de vacíos de nulabilidad y cumplimiento axial de tipos.
- * NIVEL DE INTEGRIDAD: 100% (Purifier Verified)
+ * MISIÓN: Gestión soberana de contenidos descargados en la Bóveda Local.
+ * [REFORMA V8.4]: Resolución de asimetría nominal y validación de integridad axial.
+ * NIVEL DE INTEGRIDAD: 100% (CTO Verified)
  */
 
 "use client";
@@ -36,43 +36,54 @@ export default function OfflinePage() {
   useEffect(() => {
     setIsComponentMountedStatus(true);
     const storedMetadataSnapshot = localStorage.getItem(OFFLINE_METADATA_STORAGE_KEY);
+    
     if (storedMetadataSnapshot) {
         try {
             const libraryMetadataDictionary = JSON.parse(storedMetadataSnapshot);
             setOfflineDownloadsCollection(Object.values(libraryMetadataDictionary) as PodcastWithProfile[]);
         } catch (exceptionInformation: unknown) {
-            nicepodLog("🔥 [Offline] Error en lectura de metadatos locales.", exceptionInformation, 'exceptionInformation');
+            nicepodLog("🔥 [Offline] Error en lectura de metadatos locales.", exceptionInformation, 'error');
         }
     }
   }, []);
 
-  const handleDelete = async (identification: number, uniformResourceLocator: string | null) => {
-    if(!confirm("¿Borrar descarga?")) return;
+  /**
+   * executePodcastDeletionProcess: Gestiona la purga física y lógica de una descarga.
+   */
+  const executePodcastDeletionProcess = async (
+    podcastIdentification: number, 
+    audioUniformResourceLocator: string | null
+  ) => {
+    if(!confirm("¿Desea eliminar este registro de la memoria local?")) return;
 
-    if (!uniformResourceLocator) {
-        console.error("⚠️ [Offline-UI] Intento de borrado de recurso sin Localizador Uniforme de Recursos.");
-        return;
-    }
-    
+    // 1. Purga de la Caché Física (Media Cache)
     if (audioUniformResourceLocator) {
       try {
           const mediaCacheInstance = await caches.open(MEDIA_CACHE_IDENTIFICATION);
           await mediaCacheInstance.delete(audioUniformResourceLocator);
       } catch(exceptionInformation: unknown) {
-          nicepodLog("🔥 [Offline] Error en purga de caché física.", exceptionInformation, 'exceptionInformation');
+          nicepodLog("🔥 [Offline] Error en purga de caché física.", exceptionInformation, 'error');
       }
     }
 
+    // 2. Purga del Diccionario de Metadatos (Local Storage)
     const storedMetadataSnapshot = localStorage.getItem(OFFLINE_METADATA_STORAGE_KEY);
     if (storedMetadataSnapshot) {
-        const libraryMetadataDictionary = JSON.parse(storedMetadataSnapshot);
-        delete libraryMetadataDictionary[podcastIdentification];
-        localStorage.setItem(OFFLINE_METADATA_STORAGE_KEY, JSON.stringify(libraryMetadataDictionary));
-        setOfflineDownloadsCollection(Object.values(libraryMetadataDictionary));
+        try {
+            const libraryMetadataDictionary = JSON.parse(storedMetadataSnapshot);
+            delete libraryMetadataDictionary[podcastIdentification];
+            
+            localStorage.setItem(OFFLINE_METADATA_STORAGE_KEY, JSON.stringify(libraryMetadataDictionary));
+            setOfflineDownloadsCollection(Object.values(libraryMetadataDictionary) as PodcastWithProfile[]);
+            
+            nicepodLog(`✅ [Offline] Recurso ${podcastIdentification} eliminado con éxito.`);
+        } catch (exceptionInformation: unknown) {
+            nicepodLog("🔥 [Offline] Fallo en actualización de registro local.", exceptionInformation, 'error');
+        }
     }
   };
 
-  // Impedir el renderizado en el servidor para evitar fallos de hidratación (Axial Integrity)
+  // Impedir el renderizado en el servidor para evitar fallos de hidratación (Doctrina BSS)
   if (!isComponentMountedStatus) return null;
 
   return (
@@ -110,7 +121,7 @@ export default function OfflinePage() {
                     <Card key={podcastSnapshot.identification} className="bg-slate-900/80 border-slate-700 overflow-hidden hover:border-primary/50 transition-all cursor-pointer group">
                         <CardContent className="p-3 flex gap-4 items-center">
                             
-                            {/* PORTADA DE ACTIVO: Uso de etiqueta nativa para bypass de optimización remota */}
+                            {/* PORTADA DE ACTIVO */}
                             <div className="relative h-20 w-20 bg-black/40 rounded-lg flex-shrink-0 overflow-hidden shadow-lg border border-slate-700">
                                  {podcastSnapshot.coverImageUniformResourceLocator ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -137,7 +148,9 @@ export default function OfflinePage() {
                             
                             {/* Dossier de Información */}
                             <div className="flex-1 min-w-0 py-1" onClick={() => playPodcastAction(podcastSnapshot)}>
-                                <h3 className="font-bold text-slate-100 truncate text-sm mb-1 leading-tight uppercase italic">{podcastSnapshot.titleTextContent}</h3>
+                                <h3 className="font-bold text-slate-100 truncate text-sm mb-1 leading-tight uppercase italic">
+                                  {podcastSnapshot.titleTextContent}
+                                </h3>
                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 truncate mb-2">
                                   {podcastSnapshot.profiles?.fullName || 'Cronista Soberano'}
                                 </p>
@@ -148,10 +161,18 @@ export default function OfflinePage() {
                             
                             {/* Purgado de Memoria Física */}
                             <div className="flex flex-col justify-center border-l border-slate-800 pl-2 ml-1">
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-950/20" onClick={(mouseEvent) => {
-                                    mouseEvent.stopPropagation();
-                                    handleDeleteAction(podcastSnapshot.identification, podcastSnapshot.audioUniformResourceLocator);
-                                }}>
+                                <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-950/20" 
+                                    onClick={(mouseEvent) => {
+                                        mouseEvent.stopPropagation();
+                                        executePodcastDeletionProcess(
+                                          podcastSnapshot.identification, 
+                                          podcastSnapshot.audioUniformResourceLocator
+                                        );
+                                    }}
+                                >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
