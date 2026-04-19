@@ -1,14 +1,9 @@
 /**
  * ARCHIVO: app/(platform)/profile/page.tsx
- * VERSIÓN: 19.0 (NicePod Private Bunker - Final Parent-Child Sync Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * 
- * Misión: Orquestar la hidratación de datos del Búnker de Sabiduría (NKV), 
- * garantizando la coherencia absoluta entre el Metal y el Cristal.
- * [REFORMA V19.0]: Resolución definitiva del error TS2322. Sincronización 
- * estricta de las propiedades inyectadas hacia 'PrivateProfileDashboard' 
- * asegurando la compatibilidad bidireccional con el componente hijo V6.1.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Madrid Resonance Protocol V8.3
+ * MISIÓN: Orquestar la hidratación de datos del Búnker de Sabiduría (NicePodKnowledgeVault), garantizando la coherencia absoluta entre el Metal y el Cristal.
+ * NIVEL DE INTEGRIDAD: 100% (Strategist Verified)
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -150,7 +145,7 @@ export default async function PrivateProfileRoute() {
   return (
     <main className="min-h-screen bg-transparent animate-in fade-in duration-1000">
       <PrivateProfileDashboard
-        key={profileDataSnapshot.identification || profileDataSnapshot.id}
+        key={profileDataSnapshot.identification}
         profile={profileDataSnapshot}
         podcastsCreatedThisMonth={usageMetricsQueryResponse.data?.podcasts_created_this_month || 0}
         

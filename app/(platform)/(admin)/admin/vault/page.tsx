@@ -1,12 +1,10 @@
 /**
  * ARCHIVO: app/(platform)/(admin)/admin/vault/page.tsx
- * VERSIÓN: 4.0 (Madrid Resonance)
- * PROTOCOLO: Madrid Resonance Protocol V4.0
- * MISIÓN: Punto de entrada administrativo para la gestión del Knowledge Vault (NKV).
- * NIVEL DE INTEGRIDAD: HIGH
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Madrid Resonance Protocol V8.3
+ * MISIÓN: Punto de entrada administrativo para la gestión del NicePodKnowledgeVault.
+ * NIVEL DE INTEGRIDAD: 100% (Strategist Verified)
  */
-
-// app/(platform)/(admin)/admin/vault/page.tsx
 
 import { listVaultSources, VaultKnowledgeSource } from "@/actions/vault-actions";
 import { VaultDashboardClient } from "@/components/admin/vault-dashboard-client";
@@ -29,12 +27,12 @@ export default async function VaultPage() {
   const administrativeResponse = await listVaultSources();
   
   // 2. EXTRACCIÓN SANEADA (Build Shield Sovereignty)
-  const sourcesInventory: VaultKnowledgeSource[] = administrativeResponse.success && administrativeResponse.data
-    ? administrativeResponse.data
+  const sourcesInventory: VaultKnowledgeSource[] = administrativeResponse.success && administrativeResponse.dataPayload
+    ? administrativeResponse.dataPayload
     : [];
 
   // 3. TELEMETRÍA DE DENSIDAD (Cálculo de Chunks Atómicos)
-  const totalAtomicFactsCount = sourcesInventory.reduce((accumulator: number, currentSource: VaultKnowledgeSource) => {
+  const totalAtomicFactsCountMagnitude = sourcesInventory.reduce((accumulator: number, currentSource: VaultKnowledgeSource) => {
     const chunkCount = currentSource.knowledgeChunksInventory?.[0]?.count || 0;
     return accumulator + chunkCount;
   }, 0);
@@ -94,7 +92,7 @@ export default async function VaultPage() {
               Hechos Atómicos (Vectores)
             </p>
             <p className="text-5xl font-black text-white leading-none tabular-nums drop-shadow-[0_0_15px_rgba(var(--primary),0.5)]">
-              {totalAtomicFactsCount}
+              {totalAtomicFactsCountMagnitude}
             </p>
          </div>
 
@@ -102,7 +100,7 @@ export default async function VaultPage() {
          {!administrativeResponse.success && (
            <div className="sm:col-span-2 lg:col-span-1 p-6 bg-red-950/20 border border-red-500/20 rounded-[2rem] flex flex-col justify-center">
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-2">Fallo de Subsistema</p>
-              <p className="text-xs text-red-400 font-medium">{administrativeResponse.exceptionMessageInformation || "No se pudo establecer contacto con PostgreSQL."}</p>
+              <p className="text-xs text-red-400 font-medium">{administrativeResponse.exceptionInformation || "No se pudo establecer contacto con PostgreSQL."}</p>
            </div>
          )}
       </div>

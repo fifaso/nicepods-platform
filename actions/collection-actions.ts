@@ -1,9 +1,8 @@
 /**
  * ARCHIVO: actions/collection-actions.ts
- * VERSIÓN: 8.0 (NicePod Curation Engine - Madrid Resonance V8.0)
- * PROTOCOLO: MADRID RESONANCE V8.0
+ * VERSIÓN: 8.3 (NicePod Curation Engine - Madrid Resonance V8.3)
+ * PROTOCOLO: MADRID RESONANCE V8.3
  * MISIÓN: Orquestar la creación de una Bóveda Temática con integridad axial y doctrina DIS.
- * [CORRECCIÓN V8.0]: Reparación de Integridad Axial y Soberanía Nominal (ZAP 2.0).
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP 2.0 / Build Shield Green)
  */
 
@@ -15,6 +14,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ProfileActionResponse, Collection } from "@/types/profile";
 import { nicepodLog } from "@/lib/utils";
+import { transformDatabaseCollectionToSovereignEntity } from "@/lib/mappers/collection-sovereign-mapper";
 
 /**
  * ESQUEMA EXTENDIDO: CreateCollectionWithItemsSchema
@@ -41,6 +41,7 @@ export async function createCollectionAction(
   // 1. HANDSHAKE DE SOBERANÍA (DIS DOCTRINE)
   const { data: { user: authenticatedUserSnapshot }, error: authenticationExceptionInformation } = await supabaseSovereignClient.auth.getUser();
   if (authenticationExceptionInformation || !authenticatedUserSnapshot) {
+    nicepodLog("🛑 [Curation-Engine] Intento de creación sin sesión.", "AUTH_REQUIRED", 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "SESIÓN_REQUERIDA: Inicie sesión para crear colecciones.",
@@ -101,7 +102,7 @@ export async function createCollectionAction(
 
     // 5. PROTOCOLO DE CONTENCIÓN (Manual Rollback)
     if (itemsDatabaseHardwareException) {
-      nicepodLog(`⚠️ [Curation-Engine] Fallo en vinculación. Purgando cabecera huérfana: ${newCollectionIdentification}`);
+      nicepodLog(`⚠️ [Curation-Engine] Fallo en vinculación. Purgando cabecera huérfana: ${newCollectionIdentification}`, { exception: itemsDatabaseHardwareException.message }, 'warning');
       await supabaseSovereignClient.from("collections").delete().eq("id", newCollectionIdentification);
       throw new Error(`DB_ITEMS_FAIL: ${itemsDatabaseHardwareException.message}`);
     }
@@ -118,6 +119,8 @@ export async function createCollectionAction(
     }
     revalidatePath("/profile");
     revalidatePath("/podcasts");
+
+    nicepodLog("💎 [Curation-Engine] Hilo de sabiduría materializado.", { collectionIdentification: newCollectionIdentification });
 
     return {
       isOperationSuccessful: true,
@@ -139,14 +142,14 @@ export async function createCollectionAction(
 
 /**
  * getMyCollections:
- * Recuperar el inventario de hilos curados por el Voyager activo.
+ * Recuperar el inventario de hilos curados por el Voyager activo con transmutación soberana.
  */
-export async function getMyCollections() {
+export async function getMyCollections(): Promise<Collection[]> {
   const supabaseSovereignClient = createClient();
   const { data: { user: authenticatedUserSnapshot } } = await supabaseSovereignClient.auth.getUser();
 
   if (!authenticatedUserSnapshot) {
-    console.warn("🛑 [Curation-Engine] Intento de acceso a colecciones sin sesión.");
+    nicepodLog("🛑 [Curation-Engine] Intento de acceso a colecciones sin sesión.", null, 'warning');
     return [];
   }
 
@@ -156,15 +159,7 @@ export async function getMyCollections() {
     const { data: collectionDatabaseResultsCollection, error: queryDatabaseHardwareException } = await supabaseSovereignClient
       .from("collections")
       .select(`
-        id, 
-        owner_id,
-        title, 
-        description,
-        is_public, 
-        cover_image_url,
-        total_listened_count,
-        likes_count,
-        updated_at,
+        *,
         collection_items (count)
       `)
       .eq("owner_id", authenticatedUserIdentification)
@@ -172,20 +167,14 @@ export async function getMyCollections() {
 
     if (queryDatabaseHardwareException) throw queryDatabaseHardwareException;
 
-    const typedCollectionDatabaseResultsCollection = collectionDatabaseResultsCollection as unknown as (Collection & { id: string, owner_id: string, description: string, is_public: boolean, cover_image_url: string, total_listened_count: number, likes_count: number, updated_at: string, collection_items: { count: number }[] })[];
+    // Auditoría de Transmutación
+    nicepodLog(
+      "🔄 [Curation-Engine][GetMy]: Transmutando inventario de colecciones.",
+      { collectionCountMagnitude: (collectionDatabaseResultsCollection || []).length }
+    );
 
-    return (typedCollectionDatabaseResultsCollection || []).map((collectionItemSnapshot) => ({
-      identification: collectionItemSnapshot.id,
-      ownerUserIdentification: collectionItemSnapshot.owner_id,
-      title: collectionItemSnapshot.title,
-      descriptionTextContent: collectionItemSnapshot.description,
-      isPublicSovereignty: collectionItemSnapshot.is_public ?? true,
-      coverImageUniformResourceLocator: collectionItemSnapshot.cover_image_url,
-      totalListenedCount: collectionItemSnapshot.total_listened_count ?? 0,
-      likesCountTotal: collectionItemSnapshot.likes_count ?? 0,
-      updateTimestamp: collectionItemSnapshot.updated_at,
-      collectionItems: collectionItemSnapshot.collection_items
-    }));
+    return (collectionDatabaseResultsCollection || []).map(transformDatabaseCollectionToSovereignEntity);
+
   } catch (exceptionMessageInformation: unknown) {
     const exceptionMessageText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
     nicepodLog("🔥 [Curation-Engine-Fatal][GetMy]:", exceptionMessageText, 'exceptionInformation');
