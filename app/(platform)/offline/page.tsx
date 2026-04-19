@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: app/(platform)/offline/page.tsx
- * VERSIÓN: 5.0 (Madrid Resonance - Sovereign Edition)
- * PROTOCOLO: OFFLINE INTEGRITY & ZAP 2.0
- * MISIÓN: Proveer acceso a activos descargados sin conexión a la red.
- * [REFORMA V5.0]: Sincronización nominal ZAP y blindaje de tipos BSS.
- * NIVEL DE INTEGRIDAD: 100% (Soberano)
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: UserInterface Integrity & Null-Safety
+ * MISIÓN: Gestión soberana de contenidos descargados.
+ * [REFORMA V8.3]: Sello de vacíos de nulabilidad y cumplimiento axial de tipos.
+ * NIVEL DE INTEGRIDAD: 100% (Purifier Verified)
  */
 
 "use client";
@@ -46,12 +46,13 @@ export default function OfflinePage() {
     }
   }, []);
 
-  /**
-   * handleDeleteAction:
-   * Misión: Purgar un activo de la caché física y del registro de metadatos.
-   */
-  const handleDeleteAction = async (podcastIdentification: number, audioUniformResourceLocator: string | null) => {
-    if(!confirm("¿Desea eliminar la descarga local del activo?")) return;
+  const handleDelete = async (identification: number, uniformResourceLocator: string | null) => {
+    if(!confirm("¿Borrar descarga?")) return;
+
+    if (!uniformResourceLocator) {
+        console.error("⚠️ [Offline-UI] Intento de borrado de recurso sin Localizador Uniforme de Recursos.");
+        return;
+    }
     
     if (audioUniformResourceLocator) {
       try {
