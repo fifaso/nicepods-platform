@@ -1,12 +1,11 @@
 /**
  * ARCHIVO: contexts/audio-context.tsx
- * VERSIÓN: 11.0 (Madrid Resonance - Sovereign Edition)
- * PROTOCOLO: MADRID RESONANCE V7.0
+ * VERSIÓN: 12.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V8.0
  *
  * MISIÓN: Motor de audio neuronal con despacho de telemetría de alta frecuencia.
- * [REFORMA V11.0]: Sincronización axial completa con el contrato purificado V7.0.
- * [THERMIC V1.0]: Implementación del Protocolo de Captura de Referencia Mutable (MRCP) y aniquilación de WebKit.
- * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ * [THERMIC V2.0]: Reforzamiento del WebKit Defeat Protocol y purificación nominal absoluta (ZAP).
+ * Erradicación de abreviaciones remanentes y blindaje de integridad.
  *
  * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V8.0)
  */
@@ -60,9 +59,9 @@ const AudioContext = createContext<AudioContextProperties | undefined>(undefined
  * AudioProvider: El orquestador de hardware acústico de NicePod.
  */
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const { user: authenticatedUser, supabase: authSupabaseClient } = useAuth();
+  const { user: authenticatedUser, supabase: authenticationSupabaseClient } = useAuth();
   const { toast } = useToast();
-  const supabaseClient = authSupabaseClient || createClient();
+  const supabaseSovereignClient = authenticationSupabaseClient || createClient();
 
   // --- ESTADOS DE GESTIÓN INTERNOS ---
   const [currentActivePodcast, setCurrentActivePodcast] = useState<PodcastWithProfile | null>(null);
@@ -82,7 +81,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const logInteractionEventAction = useCallback(async (interactionType: 'completed_playback' | 'liked' | 'shared') => {
     if (!authenticatedUser || !currentActivePodcast) return;
     try {
-      await supabaseClient.from('playback_events').insert({
+      await supabaseSovereignClient.from('playback_events').insert({
         user_id: authenticatedUser.id,
         podcast_id: currentActivePodcast.identification,
         event_type: interactionType
@@ -90,11 +89,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } catch (exception: unknown) {
         nicepodLog("⚠️ [AudioEngine] Error de telemetría social.", exception, 'warning');
     }
-  }, [authenticatedUser, currentActivePodcast, supabaseClient]);
+  }, [authenticatedUser, currentActivePodcast, supabaseSovereignClient]);
 
   const playPodcastAction = useCallback(async (targetPodcast: PodcastWithProfile, targetPlaylist: PodcastWithProfile[] = []) => {
-    const audioInstance = audioElementReference.current;
-    if (!audioInstance) return;
+    const audioElementInstance = audioElementReference.current;
+    if (!audioElementInstance) return;
 
     if (!targetPodcast.audioUniformResourceLocator) {
       toast({ variant: "destructive", title: "Nodo Incompleto", description: "Audio en proceso de forja." });
@@ -107,20 +106,21 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     try {
       if (currentActivePodcast?.identification === targetPodcast.identification) {
-        if (audioInstance.paused) {
-            await audioInstance.play();
+        if (audioElementInstance.paused) {
+            await audioElementInstance.play();
         } else {
-            audioInstance.pause();
+            audioElementInstance.pause();
         }
       } else {
-        audioInstance.pause();
-        audioInstance.removeAttribute('src');
-        audioInstance.load();
+        // PROTOCOLO WebKit DEFEAT: Limpieza física antes de la transmutación de fuente.
+        audioElementInstance.pause();
+        audioElementInstance.removeAttribute('src');
+        audioElementInstance.load();
 
         setCurrentActivePodcast(targetPodcast);
-        audioInstance.src = targetPodcast.audioUniformResourceLocator;
-        await audioInstance.play();
-        supabaseClient.rpc('increment_play_count', { podcast_id: targetPodcast.identification }).then();
+        audioElementInstance.src = targetPodcast.audioUniformResourceLocator;
+        await audioElementInstance.play();
+        supabaseSovereignClient.rpc('increment_play_count', { podcast_id: targetPodcast.identification }).then();
       }
     } catch (exception: unknown) {
       const errorObject = exception as Error;
@@ -128,7 +128,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         toast({ title: "Hardware Bloqueado", description: "Interacción manual requerida por el navegador." });
       }
     }
-  }, [currentActivePodcast, supabaseClient, toast]);
+  }, [currentActivePodcast, supabaseSovereignClient, toast]);
 
   const handleAutomaticNextAction = useCallback(() => {
     if (playbackQueueCollection.length > 0 && currentActivePodcast) {
@@ -261,16 +261,16 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     terminatePodcastPlayback,
     togglePlayPauseAction,
     seekToTimeAction: (targetTimeSeconds: number) => {
-      const audioElementInstance = audioElementReference.current;
-      if (audioElementInstance) audioElementInstance.currentTime = targetTimeSeconds;
+      const audioElementInstanceSnapshot = audioElementReference.current;
+      if (audioElementInstanceSnapshot) audioElementInstanceSnapshot.currentTime = targetTimeSeconds;
     },
     skipForwardAction: (skipSeconds = 15) => {
-      const audioElementInstance = audioElementReference.current;
-      if (audioElementInstance) audioElementInstance.currentTime += skipSeconds;
+      const audioElementInstanceSnapshot = audioElementReference.current;
+      if (audioElementInstanceSnapshot) audioElementInstanceSnapshot.currentTime += skipSeconds;
     },
     skipBackwardAction: (skipSeconds = 15) => {
-      const audioElementInstance = audioElementReference.current;
-      if (audioElementInstance) audioElementInstance.currentTime -= skipSeconds;
+      const audioElementInstanceSnapshot = audioElementReference.current;
+      if (audioElementInstanceSnapshot) audioElementInstanceSnapshot.currentTime -= skipSeconds;
     },
     
     isPlayerInterfaceExpandedStatus,
